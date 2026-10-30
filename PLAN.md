@@ -1,6 +1,6 @@
 # Haapsalu urban blocks and building data quality
 
-Research plan · draft 1 · Aleksandra Nabiulina · 2026-10-30
+Research plan · draft 2 · Aleksandra Nabiulina · 2026-10-30
 
 Self-study project based on Practice 2 of the course *AI Technologies in Urbanism*
 (ITMO), done with an AI coding agent (Claude Code), extended with a comparison of
@@ -26,32 +26,55 @@ layer may be empty or contain only the historic line. This is stated, not hidden
    OpenStreetMap buildings in Haapsalu compared with the official Estonian data:
    - footprint: which buildings are missing in OSM, which exist only in OSM;
    - number of floors: how often OSM has it at all, and how often it matches;
+   - missing floors as a finding: how many buildings lack floors in OSM, in EHR,
+     and in both;
    - effect: how much do the population and density estimates change if official
      floors are used instead of OSM floors?
+   - two ways to estimate population: footprint × floors (BlocksNet default) versus
+     the EHR net floor area (`suletud_netopind`) of residential buildings.
 3. **Towards 3D cadastre (discussion).** What would be needed to go from floors to
    heights and volumes, and what the gaps found in question 2 mean for that.
 
-## Data (to be confirmed before use, each with source and download date)
+## Data (each recorded with source, download date and licence)
 
-| Topic | Source (candidate) | Used for |
-| --- | --- | --- |
-| Roads, water, land use, buildings, schools | OpenStreetMap (Geofabrik extract for Estonia or Overpass) | blocks, metrics (course task) |
-| Official building footprints | Maa- ja Ruumiamet, ETAK buildings | Q2 completeness |
-| Official number of floors | Estonian Building Register (EHR) open data, or Maa- ja Ruumiamet 3D building models | Q2 floors, Q3 |
-| Population check | Statistics Estonia (settlement or grid population) | sanity check of the estimated population |
-| School places | Estonian Education Information System (EHIS) | real school capacity instead of an estimate |
-| Travel time | a ready-made graph, as the course says | accessibility |
+Status: **checked** = the source page or service description was read on 2026-10-30
+(no data downloaded yet); **assumed** = not verified yet, to be checked before use.
 
-Which official dataset actually has the number of floors is checked first, not assumed.
+| Topic | Source | Used for | Status |
+| --- | --- | --- | --- |
+| Town boundary | Maa- ja Ruumiamet, EHAK administrative and settlement division, layer "Asustusüksused", unit **Haapsalu linn** (the settlement, not the municipality, which since 2017 also includes the former Ridala vald). SHP, updated monthly, open licence. | study area | checked (source); assumed: the polygon follows the coastline |
+| Official buildings: footprints, floors, height, areas, use | Maa- ja Ruumiamet WFS `https://gsavalik.envir.ee/geoserver/etak_tuletis/wfs`, layer `etak_tuletis:etak_ehr_hooned` (ETAK buildings enriched with Building Register EHR data), requested for Haapsalu only. Fields include `max_korruste_arv`, `min_korruste_arv`, `korgus`, `ehitisalune_pind`, `suletud_netopind`, `kaos_nimetus`, `esmane_kasutus`, `ehr_gid`. Updated daily, open licence (CC BY 4.0 equivalent). | Q2, Q3 | checked (field list); assumed: how complete the fields are, and how many buildings have no EHR link |
+| Roads, water, land use, buildings, schools | OpenStreetMap (via osmnx, as in BlocksNet `examples/pipeline.ipynb`) | blocks, metrics (course task), Q2 | checked (method) |
+| Official population of Haapsalu town | Statistics Estonia, population of the settlement Haapsalu linn | choice of living area per person, sanity check | assumed |
+| Population grid | Statistics Estonia, census 2021 grid | optional block-level check | assumed |
+| School places | Estonian Education Information System (EHIS) | real school capacity instead of the BlocksNet estimate | assumed |
+| 3D building models | Maa- ja Ruumiamet 3D building models | Q3 | assumed (old page not found); the `korgus` field above may be enough |
+| Travel graph | **walking** graph built by BlocksNet / IduEdu from OSM | accessibility, school provision | checked (function exists in BlocksNet 1.0.0a9) |
+
+Known data issues (from press and studies, checked): parts of the EHR are hidden from
+the public, and one building can have several EHR records.
+
+## Method decisions
+
+- **Living area per person is not guessed.** The population estimate is run with
+  20 m² (BlocksNet default) and 30 m² (the BlocksNet example) per person and compared
+  with the official population of Haapsalu linn. The chosen value is justified in the README.
+- **Second population estimate** from the EHR net floor area (`suletud_netopind`) of
+  residential buildings, compared with the footprint × floors approach.
+- **Missing floors are a finding.** Report how many buildings lack floors in OSM, in EHR,
+  and in both, and what default BlocksNet uses then (1 floor).
+- **School provision** uses the BlocksNet defaults (120 places per 1 000 residents,
+  15 minutes), stated in the README.
+- **Railway:** the Haapsalu line is closed; the railway layer may be empty, which is fine.
 
 ## Steps
 
 1. **Set-up.** Project folder, Python 3.12 environment, BlocksNet, empty GitHub repository.
-2. **Boundary.** The Haapsalu town boundary (official administrative boundary).
-3. **Data.** Download the layers above, record source and date, save as GeoJSON.
+2. **Boundary.** EHAK "Asustusüksused", Haapsalu linn. Check it on a map.
+3. **Data.** Download the layers above (official buildings via WFS for the boundary only), record source and date, save as GeoJSON. Verify the "assumed" sources.
 4. **Blocks.** Build city blocks with BlocksNet. **Stop and check the blocks on a map** before any metrics.
-5. **Metrics.** Land use shares, density, Spacematrix, population estimate, schools, accessibility, as in BlocksNet `examples/pipeline.ipynb`.
-6. **Building comparison (Q2).** Match OSM and official buildings, count missing ones, compare floors; recompute population and density with official floors.
+5. **Metrics.** Land use shares, density, Spacematrix, population estimate (20 and 30 m² per person, compared with the official population), schools, walking accessibility, as in BlocksNet `examples/pipeline.ipynb`.
+6. **Building comparison (Q2).** Match OSM and official buildings, count missing ones, compare floors, count buildings without floors in OSM / EHR / both; recompute population and density with official floors; compare with the EHR net floor area estimate.
 7. **Dashboard.** One `dashboard.html`: map of blocks, charts and tables, plus a page section for the OSM vs official comparison.
 8. **Checks.** A table "metric — notebook — dashboard" to prove the numbers match; a re-run instruction.
 9. **Publish.** GitHub repository with README, plan, notebook, GeoJSON, script, dashboard; a short LinkedIn post.
