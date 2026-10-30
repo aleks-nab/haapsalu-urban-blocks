@@ -45,9 +45,11 @@ Status: **checked** = the source page or service description was read on 2026-10
 | Town boundary | Maa- ja Ruumiamet, EHAK administrative and settlement division, layer "Asustusüksused", unit **Haapsalu linn** (the settlement, not the municipality, which since 2017 also includes the former Ridala vald). SHP, updated monthly, open licence. | study area | checked (source); assumed: the polygon follows the coastline |
 | Official buildings: footprints, floors, height, areas, use | Maa- ja Ruumiamet WFS `https://gsavalik.envir.ee/geoserver/etak_tuletis/wfs`, layer `etak_tuletis:etak_ehr_hooned` (ETAK buildings enriched with Building Register EHR data), requested for Haapsalu only. Fields include `max_korruste_arv`, `min_korruste_arv`, `korgus`, `ehitisalune_pind`, `suletud_netopind`, `kaos_nimetus`, `esmane_kasutus`, `ehr_gid`. Updated daily, open licence (CC BY 4.0 equivalent). | Q2, Q3 | checked (field list); assumed: how complete the fields are, and how many buildings have no EHR link |
 | Roads, water, land use, buildings, schools | OpenStreetMap (via osmnx, as in BlocksNet `examples/pipeline.ipynb`) | blocks, metrics (course task), Q2 | checked (method) |
-| Official population of Haapsalu town | Statistics Estonia, population of the settlement Haapsalu linn | choice of living area per person, sanity check | assumed |
+| Living area per person | Statistics Estonia, census 2021: average floor area per person for Haapsalu if published, otherwise Lääne county, otherwise the Estonian average (30.1 m²). Table code and download date to be cited. | population estimate (model parameter) | assumed (table not located yet) |
+| Official population of Haapsalu town | Statistics Estonia, population of the settlement Haapsalu linn | check of the model and the building data | assumed |
 | Population grid | Statistics Estonia, census 2021 grid | optional block-level check | assumed |
-| School places | Estonian Education Information System (EHIS) | real school capacity instead of the BlocksNet estimate | assumed |
+| School capacity | Estonian Education Information System (EHIS): actual capacity or number of students of each school in Haapsalu | school capacity instead of the BlocksNet estimate | assumed |
+| School-age children (7–18) | Statistics Estonia, population by age for Haapsalu linn (or the smallest published area that contains it) | school demand instead of the BlocksNet norm | assumed |
 | 3D building models | Maa- ja Ruumiamet 3D building models | Q3 | assumed (old page not found); the `korgus` field above may be enough |
 | Travel graph | **walking** graph built by BlocksNet / IduEdu from OSM | accessibility, school provision | checked (function exists in BlocksNet 1.0.0a9) |
 
@@ -56,15 +58,26 @@ the public, and one building can have several EHR records.
 
 ## Method decisions
 
-- **Living area per person is not guessed.** The population estimate is run with
-  20 m² (BlocksNet default) and 30 m² (the BlocksNet example) per person and compared
-  with the official population of Haapsalu linn. The chosen value is justified in the README.
+- **Living area per person comes from official statistics, not from tuning.** Use the
+  Statistics Estonia census 2021 average floor area per person: for Haapsalu if
+  available, otherwise for Lääne county, otherwise the Estonian average of 30.1 m².
+  The table and its date are cited in the README. The BlocksNet defaults (20 m² default,
+  30 m² in the example) are not used.
+- **One check, not calibration.** The estimated population is compared once with the
+  official population of Haapsalu linn. The difference is reported as a check of the
+  model and of the building data; the parameter is not changed to make them match.
 - **Second population estimate** from the EHR net floor area (`suletud_netopind`) of
   residential buildings, compared with the footprint × floors approach.
 - **Missing floors are a finding.** Report how many buildings lack floors in OSM, in EHR,
   and in both, and what default BlocksNet uses then (1 floor).
-- **School provision** uses the BlocksNet defaults (120 places per 1 000 residents,
-  15 minutes), stated in the README.
+- **School provision uses Estonian data, not the BlocksNet norms.** The BlocksNet norms
+  (120 places per 1 000 residents, 15 minutes) come from Russian standards. Instead:
+  - capacity: actual capacity or number of students per school from EHIS;
+  - demand: number of children aged 7–18 from Statistics Estonia, spread over blocks
+    in proportion to the estimated population.
+  The BlocksNet norm is a fallback only, used for a part where Estonian data cannot be
+  found; the README then says which part and why. The 15-minute walking limit has no
+  Estonian source yet, so it is kept as a fallback and marked as such.
 - **Railway:** the Haapsalu line is closed; the railway layer may be empty, which is fine.
 
 ## Steps
@@ -73,7 +86,7 @@ the public, and one building can have several EHR records.
 2. **Boundary.** EHAK "Asustusüksused", Haapsalu linn. Check it on a map.
 3. **Data.** Download the layers above (official buildings via WFS for the boundary only), record source and date, save as GeoJSON. Verify the "assumed" sources.
 4. **Blocks.** Build city blocks with BlocksNet. **Stop and check the blocks on a map** before any metrics.
-5. **Metrics.** Land use shares, density, Spacematrix, population estimate (20 and 30 m² per person, compared with the official population), schools, walking accessibility, as in BlocksNet `examples/pipeline.ipynb`.
+5. **Metrics.** Land use shares, density, Spacematrix, population estimate (official census 2021 living area per person; one comparison with the official population as a check), schools (EHIS capacity, children aged 7–18; BlocksNet norm only as a stated fallback), walking accessibility, as in BlocksNet `examples/pipeline.ipynb`.
 6. **Building comparison (Q2).** Match OSM and official buildings, count missing ones, compare floors, count buildings without floors in OSM / EHR / both; recompute population and density with official floors; compare with the EHR net floor area estimate.
 7. **Dashboard.** One `dashboard.html`: map of blocks, charts and tables, plus a page section for the OSM vs official comparison.
 8. **Checks.** A table "metric — notebook — dashboard" to prove the numbers match; a re-run instruction.
