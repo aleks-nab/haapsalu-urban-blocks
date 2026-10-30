@@ -1,9 +1,9 @@
-name,reg_nr,ehis_id,type,subtype,address,postcode,students,general_school
-Haapsalu Põhikool,75012966,388,põhikool või gümnaasium,põhikool,Lihula mnt 12,90507,598,True
-Haapsalu Kutsehariduskeskus,70003796,51,kutseõppeasutus,,Ehitajate tee 3,90401,426,False
-Läänemaa Ühisgümnaasium,75038167,3551,põhikool või gümnaasium,gümnaasium,F. J. Wiedemanni tn 15,90503,304,True
-Haapsalu Linna Algkool,75012952,387,põhikool või gümnaasium,põhikool,Ehte tn 14,90502,282,True
-Uuemõisa Lasteaed-Algkool,75022485,566,põhikool või gümnaasium,lasteaed-põhikool,Lossi tänav 4,90401,153,True
-Ridala Põhikool,75022508,568,põhikool või gümnaasium,lasteaed-põhikool,Kooli tn 4,90402,135,True
-Haapsalu Viigi Kool,70005660,814,põhikool või gümnaasium,põhikool,Suur-Mere tn 17,90502,89,True
-Haapsalu Montessori Kool,80650545,2162466,põhikool või gümnaasium,põhikool,Jaama tn 15,90507,8,True
+name,reg_nr,ehis_id,type,subtype,address,postcode,students,general_school,location_source,inside_town,used,note,x,y
+Haapsalu Põhikool,75012966,388,põhikool või gümnaasium,põhikool,Lihula mnt 12,90507,598,True,"EHIS hooned, main building: Lääne maakond, Haapsalu linn, Haapsalu linn, Lihula mnt 12",True,True,used,473584.9,6532995.0
+Läänemaa Ühisgümnaasium,75038167,3551,põhikool või gümnaasium,gümnaasium,F. J. Wiedemanni tn 15,90503,304,True,"EHIS hooned, main building: Lääne maakond, Haapsalu linn, Haapsalu linn, F. J. Wiedemanni tn 15",True,True,used,473196.7,6534258.2
+Haapsalu Linna Algkool,75012952,387,põhikool või gümnaasium,põhikool,Ehte tn 14,90502,282,True,"EHIS hooned, main building: Lääne maakond, Haapsalu linn, Haapsalu linn, Ehte tn 14",True,True,used,473202.2,6534538.0
+Haapsalu Viigi Kool,70005660,814,põhikool või gümnaasium,põhikool,Suur-Mere tn 17,90502,89,True,"EHIS hooned, main building: Lääne maakond, Haapsalu linn, Haapsalu linn, Suur-Mere tn 17",True,True,used,473216.6,6534736.1
+Haapsalu Montessori Kool,80650545,2162466,põhikool või gümnaasium,põhikool,Jaama tn 15,90507,8,True,"In-ADS geocoding: Lääne maakond, Haapsalu linn, Haapsalu linn, Jaama tn 15",True,True,used,473484.0,6533475.9
+Haapsalu Kutsehariduskeskus,70003796,51,kutseõppeasutus,,Ehitajate tee 3,90401,426,False,"EHIS hooned, main building: Lääne maakond, Haapsalu linn, Uuemõisa alevik, Ehitajate tee 3",False,False,"vocational school, not general education",476149.3,6533425.1
+Uuemõisa Lasteaed-Algkool,75022485,566,põhikool või gümnaasium,lasteaed-põhikool,Lossi tänav 4,90401,153,True,"EHIS hooned, main building: Lääne maakond, Haapsalu linn, Uuemõisa alevik, Lossi tn 4",False,False,outside Haapsalu linn settlement,475845.2,6533880.5
+Ridala Põhikool,75022508,568,põhikool või gümnaasium,lasteaed-põhikool,Kooli tn 4,90402,135,True,"EHIS hooned, main building: Lääne maakond, Haapsalu linn, Panga küla, Kooli tn 4",False,False,outside Haapsalu linn settlement,475716.7,6521225.5
