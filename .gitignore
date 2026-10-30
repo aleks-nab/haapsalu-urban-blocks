@@ -1,0 +1,32 @@
+# Python environment
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Secrets and tokens
+.env
+.env.*
+*.token
+*token*.txt
+secrets.*
+credentials.*
+
+# Large raw data (downloaded archives and full-country extracts)
+data/raw/
+*.zip
+*.gpkg
+*.pbf
+*.osm
+*.shp
+*.shx
+*.dbf
+*.prj
+*.cpg
+*.gml
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
