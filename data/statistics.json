@@ -1,0 +1,16 @@
+{
+  "population_haapsalu_linn_2021": 9595,
+  "children_7_18_haapsalu_linn_2021": 1188,
+  "dwelling_area_per_inhabitant_m2_2021": {
+    "Estonia": 23.5,
+    "Lääne county": 25.1,
+    "Haapsalu municipality": 24.1,
+    "Haapsalu linn (settlement)": 22.7
+  },
+  "tables": {
+    "RL21003": "https://andmed.stat.ee/api/v1/en/stat/rahvaloendus/rel2021/rahvastiku_paiknemine/elukoht-ja-soo-vanusjaotus/RL21003.px",
+    "RL21807": "https://andmed.stat.ee/api/v1/en/stat/rahvaloendus/rel2021/elamistingimused/RL21807.px"
+  },
+  "reference_date": "2021-12-31",
+  "download_date": "2026-10-30"
+}
