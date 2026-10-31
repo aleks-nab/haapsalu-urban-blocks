@@ -5,6 +5,8 @@
     "Haapsalu linn (settlement)": 286529,
     "Estonia": 38970750
   },
+  "all_dwelling_area_m2_2021_haapsalu_linn": 377891,
+  "vacant_dwelling_area_m2_2021_haapsalu_linn": 91362,
   "living_area_per_person_m2_used": 29.9,
   "living_area_per_person_method": "RL21218 occupied conventional dwelling area / RL21003 population, Haapsalu linn",
   "check_estonia_same_method_m2": 29.3,

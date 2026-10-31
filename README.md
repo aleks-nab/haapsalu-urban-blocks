@@ -4,7 +4,23 @@ Self-study GIS project: city blocks and block metrics for Haapsalu, Estonia, bui
 [BlocksNet](https://github.com/aimclub/blocksnet), plus a comparison of OpenStreetMap
 buildings with official Estonian building data (footprints and number of floors).
 
-Status: blocks cut (297), metrics not calculated yet.
+Status: metrics and dashboard done, not published yet.
+
+Dashboard: [dashboard.html](dashboard.html) (one file; open it in a browser; the basemap needs the internet).
+Overview and key findings: [dashboard.html#overview](dashboard.html#overview).
+
+## Key findings
+
+Numbers are calculated by `build_dashboard.py` from the files in `data/`; details and limits are in the tab
+*Methods & limitations* of the dashboard and in [PLAN.md](PLAN.md).
+
+<!-- key-findings:start -->
+- Building-only population estimate is 1.73–2.52× the census (24 % of dwelling floor area vacant is one known reason)
+- Floors: 75.7 % of official buildings vs 3.6 % in OSM
+- 64 OSM buildings carry an ETAK id absent from current official data (possibly demolished, not verified)
+- Shared foot/cycle paths shorten walking time by more than 2 min for 13.5 % of block pairs
+- All children aged 7-15 live within 30 min walk of a municipal basic school; the PGS § 7 (3) 60-minute rule is met (walking assumed)
+<!-- key-findings:end -->
 
 See [PLAN.md](PLAN.md) for the research questions, data sources and steps.
 
@@ -30,6 +46,8 @@ ARTIIS 2023.
 
 **Course.** Based on practice 2 of the ITMO University course «Технологии ИИ в урбанистике»
 (AI Technologies in Urban Studies).
+
+**AI assistance.** Code written with the assistance of Claude Code (AI coding agent); research questions, data choices and decisions by the author.
 
 **Data.** Details, URLs, licences and download dates are in [data/SOURCES.md](data/SOURCES.md).
 

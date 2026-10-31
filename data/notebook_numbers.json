@@ -1,0 +1,37 @@
+{
+  "children_7_15": 891,
+  "cycleway_pairs": 43956,
+  "cycleway_pairs_faster_over_2min": 5923,
+  "cycleway_share_faster_over_2min": 0.1347,
+  "floors_coverage_official": 0.7567,
+  "levels_coverage_osm": 0.036,
+  "match_rate_town": 0.9701,
+  "n_blocks": 297,
+  "n_built_up_blocks": 222,
+  "n_large_blocks": 2,
+  "n_official_buildings": 3941,
+  "n_official_unmatched": 118,
+  "n_official_unmatched_in_blocks": 118,
+  "n_osm_absent_from_official": 64,
+  "n_osm_buildings": 3885,
+  "n_osm_unmatched": 295,
+  "n_osm_unmatched_in_blocks": 294,
+  "official_population_2021": 9595,
+  "population_block_sum": 9595.0,
+  "provision_strong_town": {
+    "10": 0.423,
+    "15": 0.751,
+    "20": 0.921
+  },
+  "school_places": 880,
+  "time_to_basic_school_max_min": 49.7,
+  "time_to_basic_school_median_min": 11.4,
+  "vacant_share_dwelling_area": 0.2418,
+  "walk_share_pct": {
+    "10": 42.3,
+    "15": 75.1,
+    "20": 95.4,
+    "30": 100.0,
+    "60": 100.0
+  }
+}
