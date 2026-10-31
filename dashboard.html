@@ -818,11 +818,12 @@ details.more>summary{font-size:17px;padding:10px 14px}details.more>.body{padding
 }
 @media (max-width:999px){
 .hov{display:none}.tap{display:inline}
-body.app{position:fixed;inset:0;width:100%;overflow:hidden;font-size:16px}
+html.app,body.app{height:100%;overflow:hidden}
+body.app{font-size:16px}
 .app header.hero,.app nav.top,.app #overview,.app .textcol,.app #details,.app footer,.app .story::before{display:none}
 .app .insheet{display:block!important}
 .app .story{display:block}
-.app .mapcol{position:fixed;left:0;right:0;top:0;height:58vh;height:58dvh;padding:6px 8px 4px;background:var(--bg);z-index:1}
+.app .mapcol{position:fixed;left:0;right:0;top:0;height:56vh;height:56dvh;padding:6px 8px 4px;background:var(--bg);z-index:1}
 .maplegend{left:8px;bottom:8px;max-width:calc(100% - 16px);max-height:80%;padding:0;background:none;border:0;box-shadow:none;font-size:11.5px;line-height:1.3}
 .lgbtn{display:inline-block;font:600 12px "Source Sans 3",system-ui,sans-serif;color:var(--fg);background:rgba(251,247,240,.96);border:1px solid var(--line);border-radius:999px;padding:3px 11px;box-shadow:var(--shadow);cursor:pointer}
 .maplegend:not(.open) .lgbody{display:none}
@@ -840,15 +841,19 @@ ul.kf{font-size:16px}
 details>summary{font-size:18px}
 .cards.two{grid-template-columns:repeat(2,minmax(0,1fr))}
 /* bottom strip of section cards */
-.appbar{position:fixed;left:0;right:0;top:58vh;top:58dvh;bottom:0;z-index:2;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom)}
-.strip{flex:1;min-height:0;display:flex;gap:10px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;padding:6px 7% 4px;scroll-padding:0 7%;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.appbar{position:fixed;left:0;right:0;top:56vh;top:56dvh;bottom:0;z-index:2;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom)}
+.stripwrap{position:relative;flex:1;min-height:0;display:flex}
+.strip{position:relative;flex:1;min-width:0;display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;padding:6px 0 4px}
 .strip::-webkit-scrollbar{display:none}
-.appcard{flex:0 0 86%;scroll-snap-align:center;scroll-snap-stop:always;display:flex;flex-direction:column;gap:6px;overflow-y:auto;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 14px 12px;box-shadow:var(--shadow)}
-.appcard .ct{font-family:Fraunces,Georgia,serif;font-weight:600;font-size:19px;line-height:1.2}
-.appcard .cl{margin:0;font-size:14.5px;line-height:1.32}
+.strip::before,.strip::after{content:"";flex:0 0 calc(6% - 6px)}
+.appcard{flex:0 0 88%;margin:0 6px;scroll-snap-align:center;display:flex;flex-direction:column;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 14px 12px;box-shadow:var(--shadow)}
+.navbtn{position:absolute;top:50%;margin-top:-24px;width:24px;height:48px;padding:0;border:1px solid var(--line);border-radius:12px;background:rgba(251,247,240,.94);color:var(--fg);font:700 20px/1 sans-serif;z-index:2;cursor:pointer}
+.navbtn.prev{left:1px}.navbtn.next{right:1px}.navbtn[disabled]{opacity:.25}
+.appcard .ct{font-family:Fraunces,Georgia,serif;font-weight:600;font-size:18px;line-height:1.2}
+.appcard .cl{margin:0;font-size:14px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
 .appcard .ck{display:flex;gap:8px}
 .appcard .kpi{flex:1;min-width:0;background:var(--bg);border-radius:10px;padding:5px 8px}
-.appcard .kpi b{display:block;font-family:Fraunces,Georgia,serif;font-size:19px;line-height:1.2;color:var(--acc);font-variant-numeric:lining-nums tabular-nums}
+.appcard .kpi b{display:block;font-family:Fraunces,Georgia,serif;font-size:18px;line-height:1.2;color:var(--acc);font-variant-numeric:lining-nums tabular-nums}
 .appcard .kpi span{font-size:12px;color:var(--mut);line-height:1.2;display:block}
 .appcard .modes3{margin:0;gap:0 12px;font-size:13px;line-height:1.35}
 .appcard .rm{margin-top:auto;position:sticky;bottom:0;flex:none;align-self:flex-start;font:600 14px "Source Sans 3",system-ui,sans-serif;color:#fff;background:var(--coral-dk);border:0;border-radius:999px;padding:7px 16px;cursor:pointer}
@@ -856,9 +861,11 @@ details>summary{font-size:18px}
 .dots button{position:relative;width:9px;height:9px;padding:0;border:0;border-radius:5px;background:#c9bda6;transition:width .15s}
 .dots button::after{content:"";position:absolute;inset:-9px -4px}
 .dots button.on{width:20px;background:var(--coral)}
+@media (max-height:700px){.appcard .ck{display:none}.appcard .cl{-webkit-line-clamp:3}}
 /* bottom sheet */
-#sheet{position:fixed;left:0;right:0;bottom:0;top:5vh;top:5dvh;z-index:3000;display:flex;flex-direction:column;background:var(--bg);border-radius:18px 18px 0 0;box-shadow:0 -6px 24px rgba(18,53,91,.28);transform:translateY(105%);visibility:hidden;transition:transform .26s ease,visibility 0s .26s}
-#sheet.open{transform:none;visibility:visible;transition:transform .26s ease,visibility 0s}
+#sheet{position:fixed;left:0;right:0;bottom:0;top:5vh;top:5dvh;z-index:3000;display:none;flex-direction:column;background:var(--bg);border-radius:18px 18px 0 0;box-shadow:0 -6px 24px rgba(18,53,91,.28);transform:translateY(105%);transition:transform .26s ease}
+#sheet.vis{display:flex}
+#sheet.open{transform:none}
 .grab{position:relative;display:flex;align-items:center;gap:10px;padding:16px 14px 8px;border-bottom:1px solid var(--line);touch-action:none}
 .grab .handle{position:absolute;left:50%;top:6px;width:42px;height:4px;margin-left:-21px;border-radius:2px;background:#c9bda6}
 .grab .stitle{font-family:Fraunces,Georgia,serif;font-size:18px}
@@ -1090,8 +1097,8 @@ if(!isMobile)observe();
 // phone: map on top, strip of section cards at the bottom, bottom sheet with the rest
 function initApp(){
 const ids=['overview','landuse','population','density','access','schools','q2','details'];
-document.body.classList.add('app');
-const bar=document.createElement('div');bar.className='appbar';bar.innerHTML='<div class="strip" id="strip"></div><div class="dots" id="dots"></div>';document.body.appendChild(bar);
+document.body.classList.add('app');document.documentElement.classList.add('app');
+const bar=document.createElement('div');bar.className='appbar';bar.innerHTML='<div class="stripwrap"><div class="strip" id="strip"></div><button type="button" class="navbtn prev" aria-label="Previous card">&#8249;</button><button type="button" class="navbtn next" aria-label="Next card">&#8250;</button></div><div class="dots" id="dots"></div>';document.body.appendChild(bar);
 const sheet=document.createElement('div');sheet.id='sheet';sheet.setAttribute('role','dialog');sheet.setAttribute('aria-label','More');
 sheet.innerHTML='<div class="grab"><span class="handle"></span><b class="stitle"></b><button type="button" class="sclose" aria-label="Close">Close</button></div><div class="sbody" id="sbody"></div>';document.body.appendChild(sheet);
 const st=bar.querySelector('#strip'),dots=bar.querySelector('#dots'),sb=sheet.querySelector('#sbody');
@@ -1099,17 +1106,19 @@ ids.forEach((id,k)=>{const s=document.getElementById(id),d=JSON.parse(s.dataset.
 c.innerHTML='<div class="ct">'+d.title+'</div><p class="cl">'+d.lead+'</p><div class="ck">'+d.kpi.map(x=>'<div class="kpi"><b>'+x[0]+'</b><span>'+x[1]+'</span></div>').join('')+'</div><div class="cm"></div><button type="button" class="rm" data-open="'+id+'">Read more</button>';
 const m=s.querySelector('.modes3');if(m)c.querySelector('.cm').appendChild(m);else c.querySelector('.cm').remove();
 st.appendChild(c);const b=document.createElement('button');b.type='button';b.setAttribute('aria-label',d.title);b.dataset.k=k;dots.appendChild(b)});
-let curK=-1;
-function setCard(k){if(k===curK)return;curK=k;dots.querySelectorAll('button').forEach((b,i)=>b.classList.toggle('on',i===k));const id=ids[k];if(SECMODE[id]){state.active=id;apply(id)}}
-let t=null;st.addEventListener('scroll',()=>{clearTimeout(t);t=setTimeout(()=>{const mid=st.scrollLeft+st.clientWidth/2;let best=0,bd=1e9;[...st.children].forEach((c,i)=>{const d=Math.abs(c.offsetLeft+c.offsetWidth/2-mid);if(d<bd){bd=d;best=i}});setCard(best)},60)});
-dots.addEventListener('click',e=>{const b=e.target.closest('button');if(b)st.scrollTo({left:st.children[+b.dataset.k].offsetLeft-(st.clientWidth-st.children[+b.dataset.k].offsetWidth)/2,behavior:'smooth'})});
+let curK=-1;const prev=bar.querySelector('.prev'),next=bar.querySelector('.next');
+function setCard(k){prev.disabled=k===0;next.disabled=k===ids.length-1;if(k===curK)return;curK=k;dots.querySelectorAll('button').forEach((b,i)=>b.classList.toggle('on',i===k));const id=ids[k];if(SECMODE[id]){state.active=id;apply(id)}}
+function go(k){k=Math.max(0,Math.min(ids.length-1,k));const c=st.children[k],left=c.offsetLeft-(st.clientWidth-c.offsetWidth)/2;try{st.scrollTo({left:left,behavior:'smooth'})}catch(e){st.scrollLeft=left}}
+let t=null;st.addEventListener('scroll',()=>{clearTimeout(t);t=setTimeout(()=>{const mid=st.scrollLeft+st.clientWidth/2;let best=0,bd=1e9;[...st.children].forEach((c,i)=>{const d=Math.abs(c.offsetLeft+c.offsetWidth/2-mid);if(d<bd){bd=d;best=i}});setCard(best)},50)},{passive:true});
+dots.addEventListener('click',e=>{const b=e.target.closest('button');if(b)go(+b.dataset.k)});
+prev.addEventListener('click',()=>go(curK-1));next.addEventListener('click',()=>go(curK+1));
 setCard(0);
 let held=[],timer=null;
 function restore(){clearTimeout(timer);held.reverse().forEach(h=>{h[0].classList.remove('insheet');h[1].insertBefore(h[0],h[2])});held=[]}
 function openSheet(id){restore();const s=document.getElementById(id),nodes=id==='overview'?[document.querySelector('header.hero'),s]:[s];
 nodes.forEach(n=>{held.push([n,n.parentNode,n.nextSibling]);n.classList.add('insheet');sb.appendChild(n)});
-sheet.querySelector('.stitle').textContent=JSON.parse(s.dataset.card).title;sb.scrollTop=0;sheet.classList.add('open')}
-closeSheet=function(){if(!sheet.classList.contains('open'))return;sheet.classList.remove('open');timer=setTimeout(restore,300)};
+sheet.querySelector('.stitle').textContent=JSON.parse(s.dataset.card).title;sb.scrollTop=0;sheet.classList.add('vis');requestAnimationFrame(()=>requestAnimationFrame(()=>sheet.classList.add('open')))}
+closeSheet=function(){if(!sheet.classList.contains('vis'))return;sheet.classList.remove('open');clearTimeout(timer);timer=setTimeout(()=>{restore();sheet.classList.remove('vis')},300)};
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-open]');if(b)openSheet(b.dataset.open)});
 sheet.querySelector('.sclose').addEventListener('click',closeSheet);
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet()});
