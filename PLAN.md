@@ -284,6 +284,16 @@ way into OSM.
     grades 7–9 near Linna Algkool and far from Põhikool.
     EHIS and Statistics Estonia have no place of residence of the pupils by school or municipality. For the large blocks 2 and
     172 the block point may lie in a forest.
+- **Q2 by blocks: numbers** (pairing rule: overlap above 50 % of the smaller building; columns `n_official_unmatched`,
+  `n_osm_unmatched`, `match_rate`, `levels_coverage_osm`, `floors_coverage_official` in `blocks.geojson`; map
+  `data/q2_check.png`):
+  - Official buildings without OSM pair: 118, mostly auxiliary buildings, foundations and canopies (104 + 7 + 4), 111
+    without EHR link; none built after 2020. All 33 official buildings first used 2021–2026 have an OSM pair.
+  - OSM buildings without official pair: 295; 176 without source tag; 13 greenhouses, 9 roofs; 64 carry a `maaamet:ETAK` id
+    absent from current official data (possibly demolished, not verified).
+  - Floors: OSM 3.6 %, registry 75.7 %.
+  - way/150593045 lies on a water polygon, outside blocks — known exception (so the sum over the blocks is 294 OSM
+    buildings without a pair, not 295).
 - **Missing floors are a finding.** Report how many buildings lack floors in OSM, in EHR,
   and in both, and what default BlocksNet uses then (1 floor).
 - **School provision uses Estonian data, not the BlocksNet norms.** The BlocksNet norms
