@@ -40,6 +40,7 @@ ARTIIS 2023.
   [Maa- ja Ruumiamet opendata licence](https://geoportaal.maaruum.ee/opendata-licence) of 01.01.2025.
   Reference required by the licence: *ETAK buildings with EHR data and EHAK settlement boundary: Republic of
   Estonia Land and Spatial Development Board, extract 30.10.2026.*
+- Cadastral parcels (land-use purpose): Maa- ja Ruumiamet cadastre WFS `kataster:ky_kehtiv`, published under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) with attribution to the Estonian Ministry of Economic Affairs and Communications (wording of the service quoted in [data/SOURCES.md](data/SOURCES.md)), extract 2026-10-31. The land use of the blocks is the cadastral purpose (legal), not actual use.
 - Statistics Estonia: population and housing census 2021 (tables RL21003, RL21218 and RL21807). The database
   states: "Statistics Estonia’s open data can be shared under Creative Commons (CC) licence BY-SA 4.0"
   ([CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/deed.en)).

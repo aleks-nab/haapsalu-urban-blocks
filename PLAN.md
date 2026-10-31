@@ -51,6 +51,7 @@ feature counts are in `data/SOURCES.md`.
 | --- | --- | --- | --- |
 | Town boundary | Maa- ja Ruumiamet, EHAK administrative and settlement division, layer "Asustusüksused", unit **Haapsalu linn** (the settlement, not the municipality, which since 2017 also includes the former Ridala vald). SHP, updated monthly, open data (same Maa- ja Ruumiamet licence, see `data/SOURCES.md`). | study area | checked: EHAK code 1692, 11.0 km², follows the coastline |
 | Official buildings: footprints, floors, height, areas, use | Maa- ja Ruumiamet WFS `https://gsavalik.envir.ee/geoserver/etak_tuletis/wfs`, layer `etak_tuletis:etak_ehr_hooned` (ETAK buildings enriched with Building Register EHR data), requested for Haapsalu only. Fields include `max_korruste_arv`, `min_korruste_arv`, `korgus`, `ehitisalune_pind`, `suletud_netopind`, `kaos_nimetus`, `esmane_kasutus`, `ehr_gid`. Updated daily. Licence: Maa- ja Ruumiamet opendata licence 01.01.2025 (own licence text, https://geoportaal.maaruum.ee/opendata-licence; quoted in `data/SOURCES.md`). | Q2, Q3 | checked: 3 941 buildings in town, 2 984 linked to EHR, 2 982 with floors |
+| Cadastral parcels (land-use purpose) | Maa- ja Ruumiamet WFS `https://gsavalik.envir.ee/geoserver/kataster/wfs`, layer `kataster:ky_kehtiv`, fields `siht1`–`siht3`, `so_prts1`–`so_prts3`. Updated daily. Licence: CC BY 4.0 as stated in the service `GetCapabilities` (quoted in `data/SOURCES.md`). | land use of the blocks | checked: 2 663 parcels, 98.8 % of the town |
 | Roads, water, land use, buildings, schools | OpenStreetMap (via osmnx, as in BlocksNet `examples/pipeline.ipynb`) | blocks, metrics (course task), Q2 | checked (method) |
 | Living area per person | Statistics Estonia, census 2021: RL21218 total area of occupied conventional dwellings / RL21003 population, Haapsalu linn = **29.9 m²** (total useful floor area, same concept as the 30.1 m² for Estonia on the census page "Housing arrangements") | population estimate (model parameter) | checked |
 | Official population of Haapsalu town | Statistics Estonia, census 2021, RL21003, settlement Haapsalu linn: **9 595** (31.12.2021) | check of the model and the building data | checked |
@@ -156,6 +157,26 @@ way into OSM.
 - **Blocks with OSM buildings only** (`built_up = True` but `gsi = 0`, one OSM building each, no
   official building): block_id 11, 29, 62, 86, 144, 293. They go into the Q2 comparison (OSM
   buildings without an official pair).
+- **Land use of the blocks: cadastral purpose.** The main source is the Maa- ja Ruumiamet cadastre,
+  WFS layer `kataster:ky_kehtiv` (`hkood = '1692'`, 2 663 parcels clipped to the town, `data/cadastre_parcels.geojson`),
+  without OSM `landuse`. The purpose is the **cadastral land-use purpose (legal), not actual use**. BlocksNet
+  `assign_land_use` takes the class with the largest share of the block area (`land_use`, `share`, and the
+  shares of all classes in `share_<class>`; there is no minimum share). Mapping of `siht1` to BlocksNet:
+  `ELAMUMAA` → RESIDENTIAL; `ARIMAA` → BUSINESS; `UHISKONDLIKE_EHITISTE_MAA` → BUSINESS; `TOOTMISMAA` →
+  INDUSTRIAL; `TRANSPORDIMAA` → TRANSPORT; `ULDKASUTATAV_MAA`, `KAITSEALUNE_MAA` → RECREATION;
+  `RIIGIKAITSEMAA` → SPECIAL; `VEEKOGUDE_MAA` and `SIHTOTSTARBETA_MAA` have no class (not in the rules).
+  - **Limitations.** BlocksNet has no class for public buildings: in the rules of its `pipeline.ipynb` there
+    is no rule for schools, hospitals or education; the only public-function rule is `'religious':
+    LandUse.SPECIAL`, so the parcels of public buildings go to BUSINESS. A parcel with several purposes
+    counts with the purpose of the largest share (`so_prts`; in all 84 such parcels `siht1` already has the
+    largest share, 16 of them tie with another purpose and `siht1` is taken). `ULDKASUTATAV_MAA` (public-use
+    land, 56 % of the parcel area, mostly forest and large green areas) is RECREATION as a whole. A block
+    gets the class with the largest share even if that share is small (30 blocks have `share < 0.5`).
+- **Possible extension: legal vs planned vs mapped land use.** The general plan of Haapsalu is available as
+  open data: WFS `https://gsavalik.envir.ee/geoserver/planeeringud/wfs`, layer `planeeringud:yld_plan_maakas`
+  ("ÜP — maakasutuse juhtotstarve"), plan `planid` 1842001, updated 2024-11-13, covering 64.8 % of the town,
+  licence CC BY 4.0 as stated by the service. It is **not downloaded**. A later comparison could set the
+  legal purpose (cadastre), the planned purpose (general plan) and the mapped use (OSM) side by side.
 - **Missing floors are a finding.** Report how many buildings lack floors in OSM, in EHR,
   and in both, and what default BlocksNet uses then (1 floor).
 - **School provision uses Estonian data, not the BlocksNet norms.** The BlocksNet norms
