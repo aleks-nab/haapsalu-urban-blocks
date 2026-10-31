@@ -239,6 +239,10 @@ way into OSM.
     `blocks.geojson` has `median_accessibility` (median over all blocks of the row of the matrix, the block itself
     with time 0 included): city median 19.6 min, range 13.4–56.0 min; large blocks 2 and 172: 24.0 and 19.7 min.
     Map `data/accessibility_check.png`.
+  - **Limitation: snapping of the block point.** The block point (`representative_point`) is connected to the
+    nearest graph node as the crow flies, not to the node that is the best entry to the network. For 8 blocks (32,
+    33, 35, 84, 86, 102, 147, 149) the nearest node is a different one in the graph with and without cycleways,
+    which gives differences of up to 3 min between the two graphs for the pairs that involve these blocks.
   - **Checks.** No infinite, empty or negative values; the diagonal is 0. The block point is farther than 200 m
     from the nearest graph node for 2 blocks: 3 (207 m) and 178 (202 m).
 - **Missing floors are a finding.** Report how many buildings lack floors in OSM, in EHR,
