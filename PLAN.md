@@ -115,9 +115,10 @@ the public, and one building can have several EHR records.
   `built_up = False`, so that averages and the dashboard can show built-up blocks
   separately. A block is built up if it has at least one building in the official or the
   OSM layer; no threshold on building share is used.
-- **Large blocks:** a block over 1 km² gets `large_block = True` (the threshold is
-  preliminary and will be checked on the map). Such blocks are kept, and averages and the
-  dashboard can show them separately. The blocks also have `building_share` (footprint of
+- **Large blocks:** a block over 1 km² gets `large_block = True`. The threshold is final:
+  the two largest blocks are 3.76 and 1.31 km², the next one is only 0.39 km², and any
+  threshold from 0.4 to 1.3 km² selects the same two blocks (2 and 172). Such blocks are
+  kept, and averages and the dashboard can show them separately. The blocks also have `building_share` (footprint of
   the official buildings / block area) to show how empty they are.
 - **BlocksClassifier is not used:** in a separate trial the model labelled 213 of 216 blocks
   `INVALID` and cut nothing.

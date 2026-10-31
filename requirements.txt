@@ -1,0 +1,9 @@
+# Packages imported by notebook.ipynb, exact versions from .venv (Python 3.12.10)
+blocksnet==1.0.0a9
+geopandas==1.2.0
+matplotlib==3.11.2
+osmnx==2.1.1
+pandas==2.3.3
+shapely==2.2.0
+# Not imported directly: geopandas needs it for the raw OSM cache (to_parquet / read_parquet)
+pyarrow==19.0.1
