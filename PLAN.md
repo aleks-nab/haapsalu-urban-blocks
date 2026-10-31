@@ -154,6 +154,23 @@ way into OSM.
   `osr` = (1 − `gsi`) / `fsi`); BlocksNet only adds clips that never apply here (`gsi` to 0–1, `l`
   not below 1) and gives NaN or infinity where there are no buildings, which we leave empty (81
   blocks). Buildings belong to the block that contains their inside point, footprints are not cut.
+- **MXI and morphotypes (BlocksNet; columns `mxi`, `morphotype_spacematrix`, `spacematrix_cluster`,
+  `morphotype_strelka` of `blocks.geojson`).** `mxi` = `living_area / build_floor_area`
+  (`calculate_density_indicators`) with `living_area` = sum of `footprint_m2 x floors` of the official buildings with
+  `is_dwelling = True` and `build_floor_area` = the same sum over all official buildings (gross floor area on both
+  sides). Town: 723 250 of 1 328 477 m2 = 0.544; the 216 blocks with buildings: median 0.70. Morphotypes from
+  `blocksnet.analysis.morphotypes`, only for blocks with `fsi > 0`; the 81 blocks without buildings are `not defined`
+  (and `mxi` is empty). Results: Spacematrix 7 names for 11 clusters, Strelka 5 types (no high-rise: the largest
+  `l` is 5.0). Limitations:
+  - **The building counts as dwelling as a whole**: a shop on the ground floor of a dwelling building does not lower
+    `mxi`, so mixed use inside a building is not seen.
+  - **Sheds and garages count as non-living**: they lower `mxi` of blocks with houses.
+  - **The thresholds of Strelka and the names of the Spacematrix clusters come from the BlocksNet code, not from our
+    norms.** The number of clusters (11), KMeans, `random_state = 42` and scikit-learn 1.9.1 are the BlocksNet
+    defaults and the installed version; another version may give other clusters.
+  - **Different Spacematrix clusters can have the same name** (for example three clusters are "low-rise low-density
+    residential"); this is a feature of the method (the name comes from the cluster medians), and the dashboard
+    labels it on the chart.
 - **Blocks with OSM buildings only** (`built_up = True` but `gsi = 0`, one OSM building each, no
   official building): block_id 11, 29, 62, 86, 144, 293. They go into the Q2 comparison (OSM
   buildings without an official pair).

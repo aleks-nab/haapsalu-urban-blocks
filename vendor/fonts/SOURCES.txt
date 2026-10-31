@@ -1,0 +1,9 @@
+Fonts embedded in dashboard_v2.html (latin subset, variable fonts, SIL Open Font License 1.1).
+Downloaded on 2026-10-31 from the official Google Fonts service:
+
+Fraunces-latin-variable.woff2    https://fonts.gstatic.com/s/fraunces/v38/6NU78FyLNQOQZAnv9bYEvDiIdE9Ea92uemAk_WBq8U_9v0c2Wa0KxC9TeA.woff2
+SourceSans3-latin-variable.woff2 https://fonts.gstatic.com/s/sourcesans3/v20/nwpStKy2OAdR1K-IwhWudF-R3w8aZQ.woff2
+  (the links come from https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..700&family=Source+Sans+3:wght@400..700 )
+
+OFL-Fraunces.txt      https://github.com/google/fonts/blob/main/ofl/fraunces/OFL.txt
+OFL-SourceSans3.txt   https://github.com/google/fonts/blob/main/ofl/sourcesans3/OFL.txt

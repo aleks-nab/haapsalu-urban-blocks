@@ -8,13 +8,15 @@ buildings with official Estonian building data (footprints and number of floors)
 
 Status: metrics and dashboard done, published on GitHub Pages.
 
-Dashboard: [dashboard.html](dashboard.html) (one file; open it in a browser; the basemap needs the internet).
-Overview and key findings: [dashboard.html#overview](dashboard.html#overview).
+The dashboard is one scrolling page: a map on the left that follows the sections on the right (land use, population,
+density, accessibility, schools, OSM vs official). Overview and key findings:
+https://aleks-nab.github.io/haapsalu-urban-blocks/#overview. The page is the file [dashboard.html](dashboard.html)
+(copy in `docs/`), built by `build_dashboard.py`; the basemap needs the internet.
 
 ## Key findings
 
-Numbers are calculated by `build_dashboard.py` from the files in `data/`; details and limits are in the tab
-*Methods & limitations* of the dashboard and in [PLAN.md](PLAN.md).
+Numbers are calculated by `build_dashboard.py` from the files in `data/`; details and limits are in the section
+*Details* (Methods & limitations) of the dashboard and in [PLAN.md](PLAN.md).
 
 <!-- key-findings:start -->
 - Building-only population estimate is 1.73–2.52× the census (24 % of dwelling floor area vacant is one known reason)

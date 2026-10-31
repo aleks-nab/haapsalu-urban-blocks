@@ -6,6 +6,31 @@
   "floors_coverage_official": 0.7567,
   "levels_coverage_osm": 0.036,
   "match_rate_town": 0.9701,
+  "morphotype_params": {
+    "scikit_learn": "1.9.1",
+    "source": "BlocksNet 1.0.0a9 defaults",
+    "spacematrix_n_clusters": 11,
+    "spacematrix_random_state": 42
+  },
+  "morphotype_spacematrix_counts": {
+    "low-rise low-density mixed-use": 28,
+    "low-rise low-density non-residential": 34,
+    "low-rise low-density residential": 116,
+    "mid-rise low-density residential": 27,
+    "mid-rise non-residential": 5,
+    "mid-rise residential": 6,
+    "not defined": 81
+  },
+  "morphotype_strelka_counts": {
+    "central model": 6,
+    "individual residential": 13,
+    "low-rise model": 151,
+    "low-rise non-residential": 32,
+    "mid-rise": 13,
+    "mid-rise non-residential": 1,
+    "not defined": 81
+  },
+  "mxi_town": 0.5444,
   "n_blocks": 297,
   "n_built_up_blocks": 222,
   "n_large_blocks": 2,
@@ -24,6 +49,65 @@
     "20": 0.921
   },
   "school_places": 880,
+  "spacematrix_clusters": 11,
+  "summary_without_large": {
+    "fsi": {
+      "max": 2.248,
+      "mean": 0.3167,
+      "median": 0.2392,
+      "min": 0.0,
+      "n": 295
+    },
+    "gsi": {
+      "max": 0.6458,
+      "mean": 0.1404,
+      "median": 0.1481,
+      "min": 0.0,
+      "n": 295
+    },
+    "l": {
+      "max": 5.0,
+      "mean": 2.0727,
+      "median": 1.7867,
+      "min": 1.0,
+      "n": 214
+    },
+    "median_accessibility": {
+      "max": 56.0,
+      "mean": 21.444,
+      "median": 19.5938,
+      "min": 13.375,
+      "n": 295
+    },
+    "mxi": {
+      "max": 1.0,
+      "mean": 0.6062,
+      "median": 0.7019,
+      "min": 0.0,
+      "n": 214
+    },
+    "osr": {
+      "max": 13714.602,
+      "mean": 72.6055,
+      "median": 2.6376,
+      "min": 0.2062,
+      "n": 214
+    },
+    "population_block": {
+      "max": 268.6186,
+      "mean": 28.9363,
+      "median": 14.1149,
+      "min": 0.0,
+      "n": 295
+    },
+    "time_to_basic_school_min": {
+      "max": 49.7188,
+      "mean": 13.3872,
+      "median": 11.3594,
+      "min": 0.0,
+      "n": 295
+    }
+  },
   "time_to_basic_school_max_min": 49.7,
   "time_to_basic_school_median_min": 11.4,
   "vacant_share_dwelling_area": 0.2418,

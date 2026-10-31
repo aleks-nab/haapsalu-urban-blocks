@@ -2,7 +2,7 @@
 
 One self-contained HTML file: Leaflet 1.9.4 (vendor/leaflet-1.9.4), the block data and all texts are inside it.
 Only the basemap tiles are requested live by the browser. Every number in the texts is calculated here from the
-files in data/; the table in the tab "Checks" compares them with data/notebook_numbers.json written by the notebook.
+files in data/; the table in the section "Checks" compares them with data/notebook_numbers.json written by the notebook.
 
 Usage:  python build_dashboard.py
 """
@@ -35,7 +35,6 @@ OTHER_SCHOOLS = {"75038167": "Gymnasium (grades 10-12); only the walking time to
 BASEMAP_YEAR = 2026
 AUTHOR = "Aleksandra Nabiulina"
 REPO_URL = "https://github.com/aleks-nab/haapsalu-urban-blocks"
-NO_MAP_TABS = ("methods", "sources", "checks")  # text only, full width
 TILES = "https://tiles.maaamet.ee/tm/tms/1.0.0/hallkaart@GMC/{z}/{x}/{-y}.png"
 TERMS_URL = ("https://geoportaal.maaruum.ee/est/teenused/wms-wfs-wcs-teenused/"
              "maa-ja-ruumiameti-kaarditeenuste-kasutustingimused-p24.html")
@@ -110,12 +109,14 @@ dates = json.loads((DATA / "download_dates.json").read_text(encoding="utf-8"))
 
 b = blocks_raw.copy()
 b["pph"] = b["population_block"] / (b["area_m2"] / 10_000)
-cols = {"block_id": 0, "area_m2": 0, "land_use_display": None, "share": 3, "population_block": 2, "pph": 1,
-        "gsi": 3, "fsi": 3, "l": 2, "osr": 2, "median_accessibility": 4, "time_to_basic_school_min": 4,
+cols = {"block_id": 0, "area_m2": 0, "land_use_display": None, "share": 3, "population_block": 4, "pph": 1,
+        "gsi": 5, "fsi": 5, "l": 4, "osr": 3, "mxi": 4, "morphotype_spacematrix": None,
+        "spacematrix_cluster": None, "morphotype_strelka": None, "median_accessibility": 4, "time_to_basic_school_min": 4,
         "time_to_gymnasium_min": 4, "children_7_15": 0, "provision_strong_10": 3, "provision_strong_15": 3,
         "provision_strong_20": 3, "match_rate": 3, "n_official_unmatched": 0, "n_osm_unmatched": 0,
         "n_official_q2": 0, "n_osm_q2": 0, "floors_coverage_official": 2, "large_block": None, "built_up": None,
         "n_dwellings": 0, "geometry": None}
+b["spacematrix_cluster"] = b["spacematrix_cluster"].astype("Int64")
 b = b[list(cols)]
 # provision is empty where a block has no children (the notebook keeps NaN there)
 blocks_fc = feature_collection(b, {k: v for k, v in cols.items() if v is not None})
@@ -240,6 +241,33 @@ chk("Median time to the nearest basic school, min", nbnum["time_to_basic_school_
     lambda x: f"{x:.1f}")
 chk("Longest time to the nearest basic school, min", nbnum["time_to_basic_school_max_min"], N["t_max"],
     lambda x: f"{x:.1f}")
+
+reg = emb[emb["large_block"] == 0]  # blocks without the large blocks
+IND = [("population_block", "Population (people, distributed)"), ("gsi", "gsi"), ("fsi", "fsi"), ("l", "l (mean floors)"),
+       ("osr", "osr"), ("mxi", "mxi"), ("median_accessibility", "Median walking time to other blocks, min"),
+       ("time_to_basic_school_min", "Time to nearest basic school, min")]
+
+
+def summ(df, m):
+    x = df[m]
+    return dict(n=int(x.notna().sum()), mean=float(x.mean()), median=float(x.median()), min=float(x.min()),
+                max=float(x.max()), missing=int(x.isna().sum()))
+
+
+def fmt_summ(d):
+    return f"{d['n']} / {d['mean']:,.2f} / {d['median']:,.2f} / {d['min']:,.2f} / {d['max']:,.2f}"
+
+
+for m, label in IND:
+    chk(f"{label}: N / mean / median / min / max (without large blocks)", nbnum["summary_without_large"][m], summ(reg, m), fmt_summ)
+sm_counts = emb["morphotype_spacematrix"].value_counts().sort_index()
+st_counts = emb["morphotype_strelka"].value_counts().sort_index()
+assert set(sm_counts.index) == set(nbnum["morphotype_spacematrix_counts"]) and set(st_counts.index) == set(nbnum["morphotype_strelka_counts"])
+for name, c in nbnum["morphotype_spacematrix_counts"].items():
+    chk(f"Spacematrix morphotype: {name}", c, int(sm_counts[name]), i0)
+for name, c in nbnum["morphotype_strelka_counts"].items():
+    chk(f"Strelka morphotype: {name}", c, int(st_counts[name]), i0)
+chk("Spacematrix clusters", nbnum["spacematrix_clusters"], int(emb["spacematrix_cluster"].nunique()), i0)
 n_ok = sum(c["ok"] for c in checks)
 
 vacant_share = (stats["vacant_dwelling_area_m2_2021_haapsalu_linn"] / stats["all_dwelling_area_m2_2021_haapsalu_linn"])
@@ -257,7 +285,7 @@ FINDINGS = [
 ]
 AUTHOR_LINE = f"{AUTHOR} · self-study project · October 2026 · GitHub: "
 
-# ---------------------------------------------------------------- texts of the tabs
+# ---------------------------------------------------------------- texts of the page
 
 
 def card(value, label):
@@ -271,58 +299,10 @@ def table(head, rows, cls=""):
 
 
 T = {}
-T["overview"] = f"""
-<h2>Haapsalu urban blocks</h2>
-<h3 class="kf">Key findings</h3>
-<ul class="kf">{''.join('<li>' + esc(x) + '</li>' for x in FINDINGS)}</ul>
-<p>Haapsalu (Estonia) cut into <b>{num(N['blocks'])}</b> urban blocks along OpenStreetMap roads and water with
-<a href="https://github.com/aimclub/blocksnet">BlocksNet</a>, and described by land use, population, building density,
-walking accessibility and access to schools. A second question compares OpenStreetMap buildings with the official
-Estonian building data. Choose a tab above; click a block on the map for its numbers.</p>
-<div class="cards">
-{card(num(N['pop_census']), 'inhabitants, census 2021 (distributed over the blocks)')}
-{card(num(N['blocks']), 'urban blocks; ' + num(N['built_up']) + ' with buildings')}
-{card(num(N['off']) + ' / ' + num(N['osm']), 'buildings: official / OpenStreetMap')}
-{card(num(N['children']), 'children aged 7-15 (census 2021), distributed')}
-{card(num(N['places']), 'pupils in the two basic schools, 2026')}
-{card(pct(N['match_town']), 'official buildings with an OSM pair')}
-</div>
-<p>The {N['large']} blocks outlined in blue are large (over {LARGE_BLOCK_LABEL_KM2} km&sup2;); their values are less
-meaningful (see <i>Methods &amp; limitations</i>). {num(N['n_islands'])} islands and {num(N['n_slivers'])} slivers without buildings
-were dropped from the blocks (kept in separate files).</p>
-<p class="note">The grey outline is the settlement boundary of Haapsalu linn (EHAK). This is a self-study project; the
-numbers are results of a model with the stated assumptions (tab <i>Methods &amp; limitations</i>), not official statistics.</p>
-<p class="by">{esc(AUTHOR_LINE)}<a href="{REPO_URL}">{REPO_URL}</a></p>
-"""
 
 lu_rows = [[esc(k), num(int(r.blocks)), num(r["pop"]), pct(r["pop"] / N["pop"]),
             num(r.area / 1e6, 2)] for k, r in lu.iterrows()]
-T["landuse"] = f"""
-<h2>Land use</h2>
-<p>Each block gets the class with the largest share of its parcels' area, taken from the <b>cadastral land-use purpose
-(legal), not the actual use of the land</b>. If the largest class covers less than {int(MIXED_SHARE * 100)} % of the
-parcels the block is <i>mixed</i>{'' if mixed_ok else ' (rule not verified)'}.</p>
-{table(['Class', 'Blocks', 'Population', 'Share of population', 'Area, km²'], lu_rows)}
-<p>{pct(non_res_pop)} of the population lives in blocks whose class is not <i>residential</i> (this includes the mixed blocks).</p>
-<p class="note">The cadastre says what a parcel may be used for; a parcel can be a house plot of a business class or the
-other way round. OpenStreetMap land use is not used.</p>
-"""
 
-T["population"] = f"""
-<h2>Population</h2>
-<p>People per hectare of block area. The census total of Haapsalu linn ({num(N['pop_census'])} people, 2021) is
-<b>distributed</b> over the blocks in proportion to the registry net floor area of their dwellings; it is not a count
-per block. {num(pop_blocks)} blocks have population, the others have no dwellings.</p>
-<p>Among the blocks with population (without the large blocks) the density is between {num(dens.min(), 1)} and
-{num(dens.max(), 1)} people per hectare, median {num(dens.median(), 1)}. The scale on the map is clipped at the 95th
-percentile ({num(scale['pph'], 0)}).</p>
-<p>For comparison, the same population estimated from floor area gives a much higher number: registry net area of
-dwellings divided by {popcheck['living_area_per_person_m2']} m&sup2; per person
-(Statistics Estonia, census 2021) gives {num(popcheck['population_net'])} people
-({popcheck['ratio_net_to_official']:.2f} times the census); footprint &times; floors gives
-{num(popcheck['population_gross'])} ({popcheck['ratio_gross_to_official']:.2f} times). This is why the census total is
-distributed instead.</p>
-"""
 
 
 def scatter():
@@ -366,84 +346,67 @@ def scatter():
     return "".join(s)
 
 
-T["density"] = f"""
-<h2>Building density</h2>
-<p>Map: <b>fsi</b>, floor space index = floor area of all official buildings / block area (floors from the register,
-else height / {METRES_PER_FLOOR} m, else 1; {pct(N['floors_not_registry'])} of the buildings have no floors in the
-register). The scale is clipped at the 95th percentile ({scale['fsi']:.2f}). Blocks without buildings are grey.</p>
-<p>Chart: Spacematrix of the {num(len(gs))} blocks with buildings, coloured by land-use class.
-<b>gsi</b> = footprint / block area; <b>L</b> = fsi / gsi, the mean number of floors; <b>OSR</b> = (1 &minus; gsi) / fsi,
-open space per m&sup2; of floor area. Solid lines: constant L; dashed: constant OSR. Click a dot to find its block.</p>
-<div class="chart">{scatter()}</div>
-<p class="note">Large blocks are shown larger. A block with one small building has a very high OSR (up to
-{num(emb['osr'].max())}); this is why OSR is not mapped.</p>
-"""
 
-T["access"] = f"""
-<h2>Walking accessibility</h2>
-<p>For each block: the <b>median walking time</b> from its point to all the other blocks, on the OpenStreetMap walking
-network at {WALK_SPEED_KMH} km/h. City median {num(N['acc_med'], 1)} min; blocks range from {num(N['acc_min'], 1)} to
-{num(N['acc_max'], 1)} min. The scale is clipped at the 98th percentile ({scale['acc'][1]:.0f} min).</p>
-<p class="note">{WALK_SPEED_KMH} km/h is a conditional assumption. The block point is the representative point of the
-block; in the large blocks it can fall in a forest.</p>
-"""
+
+def hist_svg(vals, xlabel, bins=12):
+    vals = np.asarray(vals, dtype=float)
+    cnt, edges = np.histogram(vals, bins=bins)
+    W, H, ml, mr, mt, mb = 420, 190, 36, 8, 10, 38
+    ymax = int(cnt.max())
+    px = lambda x: ml + (W - ml - mr) * (x - edges[0]) / (edges[-1] - edges[0])
+    py = lambda y: H - mb - (H - mt - mb) * y / ymax
+    s_ = [f'<svg viewBox="0 0 {W} {H}" role="img" aria-label="Histogram of {esc(xlabel)}">']
+    for y in (0, ymax):
+        s_.append(f'<line class="gr" x1="{ml}" y1="{py(y):.1f}" x2="{W - mr}" y2="{py(y):.1f}"/>'
+                  f'<text class="tk" x="{ml - 5}" y="{py(y) + 4:.1f}" text-anchor="end">{y}</text>')
+    for c, a, b2 in zip(cnt, edges[:-1], edges[1:]):
+        s_.append(f'<rect class="bar" x="{px(a) + 0.5:.1f}" y="{py(c):.1f}" width="{px(b2) - px(a) - 1:.1f}" '
+                  f'height="{py(0) - py(c):.1f}"><title>{a:.2f} to {b2:.2f}: {int(c)} blocks</title></rect>')
+    for t in np.linspace(edges[0], edges[-1], 5):
+        s_.append(f'<text class="tk" x="{px(t):.1f}" y="{H - mb + 14}" text-anchor="middle">{t:.2f}</text>')
+    s_.append(f'<text class="ax" x="{(ml + W - mr) / 2:.0f}" y="{H - 6}" text-anchor="middle">{esc(xlabel)}</text>'
+              f'<text class="ax" transform="translate(10 {(mt + H - mb) / 2:.0f}) rotate(-90)" text-anchor="middle">blocks</text></svg>')
+    return "".join(s_)
+
+
+def bars_svg(items, w=420, dec=0, aria="Bar chart"):
+    """items: (label, value, fill colour or None, block id or None); label above its bar."""
+    rh, ml, mr = 30, 4, 46
+    vmax = max(v for _, v, _, _ in items) or 1
+    s_ = [f'<svg viewBox="0 0 {w} {rh * len(items) + 4}" role="img" aria-label="{esc(aria)}">']
+    for i, (label, v, fill, bid) in enumerate(items):
+        y = 2 + i * rh
+        bw = (w - ml - mr) * v / vmax
+        extra = f' data-id="{bid}" tabindex="0"' if bid else ""
+        style = f' style="fill:{fill}"' if fill else ""
+        s_.append(f'<text class="bl" x="{ml}" y="{y + 11}">{esc(label)}</text>'
+                  f'<rect class="bar{" pt" if bid else ""}" x="{ml}" y="{y + 15}" width="{bw:.1f}" height="10"{style}{extra}>'
+                  f'<title>{esc(label)}: {v:,.{dec}f}</title></rect>'
+                  f'<text class="bv" x="{ml + bw + 4:.1f}" y="{y + 24}">{v:,.{dec}f}</text>')
+    s_.append("</svg>")
+    return "".join(s_)
+
+
+top10 = emb.nlargest(10, "population_block")
+top_ids = [int(x) for x in top10["block_id"]]
+sm_name_clusters = emb[emb["spacematrix_cluster"].notna()].groupby("morphotype_spacematrix")["spacematrix_cluster"].nunique()
+dup_names = [f"{k} ({v} clusters)" for k, v in sm_name_clusters.items() if v > 1]
+top_items = [(f"Block {r.block_id} \u00b7 {r.land_use_display}" + (" \u00b7 large block" if r.large_block else ""), float(r.population_block), None, int(r.block_id)) for r in top10.itertuples()]
+sum_rows = []
+for m, label in IND:
+    d = summ(reg, m)
+    sum_rows.append([esc(label), num(d["n"]), num(d["mean"], 2), num(d["median"], 2), num(d["min"], 2), num(d["max"], 2), num(d["missing"])])
+big_rows = [[str(int(r.block_id)), num(r.area_m2 / 1e6, 2)] + [("-" if pd.isna(getattr(r, m)) else num(getattr(r, m), 2)) for m, _ in IND]
+            for r in emb[emb["large_block"] == 1].itertuples()]
+n_dev = int((emb["fsi"] > 0).sum())
+
+
 
 w_rows = [[f"{t} min", num(walk[t]["children"]), pct(walk[t]["share"]), num(walk[t]["blocks"])] for t in THRESHOLDS]
 p_rows = [[f"{t} min", f"{prov[t]['town']:.3f}", num(prov[t]["below_1"]) + " of " + num(prov[t]["blocks_with_children"])]
           for t in PROVISION]
-T["schools"] = f"""
-<h2>Schools</h2>
-<p>The map shows what you choose:</p>
-<div class="radios">
-<label><input type="radio" name="schoolmode" value="time" checked> walking time to the nearest basic school</label>
-{''.join(f'<label><input type="radio" name="schoolmode" value="{t}"> served within {t} min</label>' for t in PROVISION)}
-</div>
-<p><b>Basic schools</b> (red stars) are the two municipal schools of the main calculation; their places
-({num(N['places'])}) are the pupils of grades 1-9 on 1 October 2026. Black triangles are other schools, shown for
-information. The {num(N['children'])} children aged 7-15 of the census 2021 are distributed over the blocks in proportion
-to the population. Walking time to the nearest basic school: median {num(N['t_med'], 1)} min, longest {num(N['t_max'], 1)} min
-(block {N['t_max_block']}).</p>
-<h3>Children within a walking time</h3>
-{table(['Walking time', 'Children', 'Share of the children', 'Blocks'], w_rows)}
-<p>The Basic Schools and Upper Secondary Schools Act (PGS &sect; 7 (3)) says, in short, that at least 80 % of the pupils
-for whom a school is the home school must reach it within 60 minutes (paraphrase; it does not say how the way is made, here:
-on foot). {pct(walk[60]['share'])} of the children are within 60 minutes of the nearest basic school.</p>
-<h3>Provision with BlocksNet <code>competitive_provision</code></h3>
-{table(['Threshold', 'Provision (strong), town', 'Blocks with children not fully served'], p_rows)}
-<p class="note">The places are the pupils of 2026, not the capacity of the schools, so the result shows how the schools
-are placed relative to the children, not whether there are enough places. Haapsalu Linna Algkool teaches grades 1-6
-only. Some children go to schools outside the town or to the excluded schools.</p>
-"""
 
 kind_txt = ", ".join(f"{esc(k)} ({v})" for k, v in top_kinds.items())
-T["q2"] = f"""
-<h2>Q2: official buildings in OpenStreetMap</h2>
-<p>What is missing or outdated in OpenStreetMap when compared with the official building data? A pair is an official
-and an OSM building whose overlap is more than 50 % of the smaller one. Only numbers here.</p>
-<div class="cards">
-{card(num(N['off_un']), 'official buildings without an OSM pair (of ' + num(N['off']) + ')')}
-{card(num(N['osm_un']), 'OSM buildings without an official pair (of ' + num(N['osm']) + ')')}
-{card(pct(N['floors_off']), 'official buildings with floors in the register')}
-{card(pct(N['levels_osm']), 'OSM buildings with building:levels')}
-</div>
-<div class="radios">
-<label><input type="checkbox" data-q2="official" checked> <i class="dot" style="background:{Q2_COLOURS['official']}"></i>
-official, no OSM pair ({num(N['off_un'])})</label>
-<label><input type="checkbox" data-q2="osm" checked> <i class="dot" style="background:{Q2_COLOURS['osm']}"></i>
-OSM, no official pair ({num(N['osm_un'] - N['osm_un_absent'])})</label>
-<label><input type="checkbox" data-q2="absent" checked> <i class="dot" style="background:{Q2_COLOURS['absent']}"></i>
-OSM, <b>possibly demolished, not verified</b> ({num(N['osm_un_absent'])})</label>
-</div>
-<p>Block colour: share of the official buildings that have an OSM pair (scale from 0.5; blocks without official buildings
-are grey). The largest groups of official buildings without a pair by type: {kind_txt}.</p>
-<p>The {num(N['osm_un_absent'])} OSM buildings in magenta carry a <code>maaamet:ETAK</code> id that is in no building of the
-current official data; whether they were demolished was not verified. Of the other OSM buildings without a pair,
-{num(N['osm_un_notag'])} have no such tag and {num(N['osm_un_town'])} have an id of a building of the official town layer
-whose outline does not pair. Sum over the blocks: {num(N['off_un_blocks'])} official and {num(N['osm_un_blocks'])} OSM
-buildings ({num(N['osm_un'] - N['osm_un_blocks'])} OSM building outside all blocks).</p>
-<p class="note">OSM and the official data are not independent: OSM buildings often carry the official ETAK id
-(<code>PLAN.md</code> has the counts).</p>
-"""
 
 T["methods"] = f"""
 <h2>Methods &amp; limitations</h2>
@@ -461,11 +424,20 @@ that contains its inside point and is not cut.</li>
 {WALK_SPEED_KMH} km/h, shortest of parallel edges; the matrix is stored as <code>float16</code>.</li>
 <li><b>Schools:</b> EHIS schools inside the town; demand = children 7-15 distributed by population; BlocksNet
 <code>competitive_provision</code> with thresholds of {', '.join(str(t) for t in PROVISION)} minutes.</li>
+<li><b>MXI and morphotypes:</b> BlocksNet <code>mxi</code> = living / all floor area (footprint &times; floors, gross); a building
+is living if it has a dwelling use (<code>is_dwelling</code>), as a whole. Morphotypes from BlocksNet
+<code>get_spacematrix_morphotypes</code> and <code>get_strelka_morphotypes</code> for blocks with buildings.</li>
 <li><b>Q2:</b> pairing by overlap above 50 % of the smaller building.</li>
 </ul>
 <h3>Limitations</h3>
 <ul>
 <li>{WALK_SPEED_KMH} km/h and {METRES_PER_FLOOR} m per floor are assumptions, not norms.</li>
+<li>MXI: the building counts as living as a whole, so a shop on the ground floor does not lower it; sheds and garages count
+as non-living and lower it.</li>
+<li>The thresholds of the Strelka morphotypes and the names of the Spacematrix clusters come from BlocksNet, not from our
+norms; the {nbnum['morphotype_params']['spacematrix_n_clusters']} clusters, KMeans, <code>random_state</code>
+{nbnum['morphotype_params']['spacematrix_random_state']} and scikit-learn {esc(nbnum['morphotype_params']['scikit_learn'])} are
+the BlocksNet defaults and the installed version. Different Spacematrix clusters can have the same name.</li>
 <li>The block point is snapped to the nearest node of the walking network; for a few blocks the choice of the node
 changes times by minutes. A few blocks are far from the nearest node of the network.</li>
 <li>Large blocks: the block point can lie in a forest.</li>
@@ -518,6 +490,7 @@ Urban Studies).</p>
 
 n_bad = len(checks) - n_ok
 taken_rows = [
+    ["MXI of the town (living / all floor area, gross)", f"{nbnum['mxi_town']:.3f}", "Charts, Methods"],
     ["Pairs of blocks faster by more than 2 min with the cycleways", f"{num(nbnum['cycleway_pairs_faster_over_2min'])} of {num(nbnum['cycleway_pairs'])} ({pct(nbnum['cycleway_share_faster_over_2min'])})", "Key findings"],
     ["Vacant dwelling area, census 2021 (RL21218)", f"{num(stats['vacant_dwelling_area_m2_2021_haapsalu_linn'])} of {num(stats['all_dwelling_area_m2_2021_haapsalu_linn'])} m² ({pct(vacant_share, 0)})", "Key findings"],
     ["Population from net dwelling area / from footprint × floors", f"{num(popcheck['population_net'])} / {num(popcheck['population_gross'])} people", "Population, Key findings"],
@@ -534,169 +507,490 @@ T["checks"] = f"""
 <code>python build_dashboard.py</code>.</p>
 """
 
-TAB_ORDER = [("overview", "Overview"), ("landuse", "Land use"), ("population", "Population"),
-             ("density", "Density"), ("access", "Accessibility"), ("schools", "Schools"),
-             ("q2", "Q2: OSM vs official"), ("methods", "Methods & limitations"), ("sources", "Data & credits"),
-             ("checks", "Checks")]
-
-config = dict(tiles=TILES, attribution=f"Aluskaart: Maa- ja Ruumiamet {BASEMAP_YEAR}", landColours=LAND_COLOURS,
-              q2Colours=Q2_COLOURS, scale=scale, tabs=TAB_ORDER, kinds=kinds, thresholds=list(PROVISION), noMap=list(NO_MAP_TABS))
-data_json = json.dumps({"config": config, "blocks": blocks_fc, "boundary": boundary_fc, "schools": schools_fc,
-                        "points": points, "text": T}, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
-data_json = data_json.replace("</", "<\\/")
-
-# ---------------------------------------------------------------- page
-
-CSS = """
-:root{--bg:#fafaf8;--fg:#1d1f24;--mut:#5b6068;--line:#d9d9d4;--card:#fff;--acc:#1b4f9c;--tab:#eceae4}
-@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#17191d;--fg:#e6e6e3;--mut:#a3a7ad;--line:#33363c;--card:#1f2227;--acc:#7fb0ff;--tab:#2a2d33}}
-*{box-sizing:border-box}
-html,body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-#app{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(340px,.8fr);grid-template-rows:auto 1fr;height:100vh}
-header{grid-column:1/3;padding:10px 16px 0;border-bottom:1px solid var(--line)}
-header h1{font-size:17px;margin:0 0 8px}
-.by{color:var(--mut);font-size:12px;font-weight:400}h1 .by{margin-left:6px}
-ul.kf{margin:4px 0 12px;padding-left:20px}ul.kf li{margin:3px 0}h3.kf{margin-top:8px}
-nav{display:flex;flex-wrap:wrap;gap:4px;padding-bottom:8px}
-nav button{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--tab);color:var(--fg);border-radius:6px;padding:4px 10px;cursor:pointer}
-nav button[aria-selected=true]{background:var(--acc);border-color:var(--acc);color:#fff}
-#map{min-height:0;background:#e9eef2}
-#panel{overflow:auto;padding:12px 18px 40px;border-left:1px solid var(--line)}
-#panel h2{font-size:19px;margin:6px 0 8px}#panel h3{font-size:15px;margin:16px 0 6px}
-a{color:var(--acc)}code{font-size:.9em}
-.note{color:var(--mut);font-size:13px}
-.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:10px 0}
-.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
-.card b{display:block;font-size:20px}.card span{font-size:12.5px;color:var(--mut)}
-.tw{overflow-x:auto;margin:8px 0}
-table{border-collapse:collapse;width:100%;font-size:13px}
-th,td{border-bottom:1px solid var(--line);padding:4px 8px;text-align:left;vertical-align:top}
-td:not(:first-child),th:not(:first-child){text-align:right}table.checks td:last-child{text-align:left}
-.radios{display:flex;flex-direction:column;gap:3px;margin:8px 0;font-size:14px}
-.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:3px}
-.chart svg{width:100%;height:auto;max-width:560px}
-.chart .gr{stroke:var(--line);stroke-width:.6}.chart .tk,.chart .gt,.chart .ax{fill:var(--mut);font-size:10px}
-.chart .gl{stroke:#888;stroke-width:1}.chart .go{stroke:#888;stroke-width:1;stroke-dasharray:4 3}
-.chart .pt{stroke:#333;stroke-width:.6;cursor:pointer}.chart .pt:hover,.chart .pt:focus{stroke:#000;stroke-width:2}
-.legend{background:rgba(255,255,255,.92);color:#1d1f24;padding:6px 9px;border-radius:6px;font-size:12px;line-height:1.35;max-width:230px}
-.legend .bar{height:10px;width:180px;border:1px solid #888;margin:3px 0}.legend .sw{display:inline-block;width:12px;height:12px;margin-right:5px;vertical-align:-2px;border:1px solid #777}
-.legend .row{white-space:nowrap}.legend .lr{display:flex;justify-content:space-between;width:180px}
-.bm{background:rgba(255,255,255,.92);color:#1d1f24;padding:5px 8px;border-radius:6px;font-size:12px}
-.bm label{display:block}
-.leaflet-popup-content{font-size:13px;margin:10px 12px}.leaflet-popup-content table{font-size:12px}
-#app.nomap{grid-template-columns:minmax(0,1fr)}
-#app.nomap #map{display:none}
-#app.nomap #panel{border-left:0;padding:12px clamp(16px,4vw,56px) 40px}
-@media (max-width:799px){
-#app{display:block;height:auto}
-header{position:static}
-#map{height:58vh}
-#panel{border-left:0;overflow:visible;padding-bottom:60px}
-}
-"""
-
-JS = r"""
-(function(){
-const D=JSON.parse(document.getElementById('data').textContent),C=D.config;
-const LC=C.landColours,QC=C.q2Colours;
-const SEQ={blue:['#ffffcc','#a1dab4','#41b6c4','#2c7fb8','#253494'],heat:['#ffffb2','#fecc5c','#fd8d3c','#f03b20','#bd0026'],
-rdylgn:['#d73027','#fdae61','#ffffbf','#a6d96a','#1a9850']};
-const NA='#e2e2e2';
-function hex(h){return [1,3,5].map(i=>parseInt(h.substr(i,2),16))}
-function ramp(st,t){t=Math.max(0,Math.min(1,t));const k=t*(st.length-1),i=Math.min(st.length-2,Math.floor(k)),f=k-i,a=hex(st[i]),b=hex(st[i+1]);
-return 'rgb('+a.map((x,j)=>Math.round(x+(b[j]-x)*f)).join(',')+')'}
-function grad(st){return 'linear-gradient(to right,'+st.join(',')+')'}
-const fmt={int:v=>v==null?'-':Math.round(v).toLocaleString('en'),f1:v=>v==null?'-':v.toFixed(1),f2:v=>v==null?'-':v.toFixed(2),f3:v=>v==null?'-':v.toFixed(3),
-pct:v=>v==null?'-':(100*v).toFixed(1)+' %',osr:v=>v==null?'-':(v>100?'> 100':v.toFixed(2)),txt:v=>v==null?'-':v,yn:v=>v==null?'-':(v>=1?'yes':'no')};
-const map=L.map('map',{preferCanvas:true,minZoom:8,maxZoom:19});
-const tiles=L.tileLayer(C.tiles,{minZoom:8,maxNativeZoom:18,maxZoom:19,attribution:C.attribution});
-tiles.addTo(map);
-const bm=L.control({position:'topright'});
-bm.onAdd=function(){const d=L.DomUtil.create('div','bm');
-d.innerHTML='<b>Basemap</b><label><input type="radio" name="bm" value="on" checked> hallkaart</label><label><input type="radio" name="bm" value="off"> no basemap</label>';
-L.DomEvent.disableClickPropagation(d);
-d.addEventListener('change',e=>{if(e.target.value==='off'){map.removeLayer(tiles)}else{tiles.addTo(map);tiles.bringToBack()}});return d};
-bm.addTo(map);
-const boundary=L.geoJSON(D.boundary,{style:{color:'#222',weight:1.6,fill:false},interactive:false}).addTo(map);
-let needFit=false;const byId={};let sel=null,cur='overview',state={school:'time',q2:{official:true,osm:true,absent:true}};
-function base(p){return p.large_block?{color:'#1b4f9c',weight:2.6}:{color:'#6b6b6b',weight:.5}}
-const T={
-overview:{f:p=>({fillColor:'#2c7fb8',fillOpacity:.32}),leg:()=>'<div class="row"><span class="sw" style="background:#9cc5de"></span>urban block</div>'+largeLeg()},
-landuse:{f:p=>({fillColor:LC[p.land_use_display]||NA,fillOpacity:.8}),
-leg:()=>'<b>Land use (cadastral purpose)</b>'+Object.keys(LC).filter(k=>k!=='agriculture').map(k=>'<div class="row"><span class="sw" style="background:'+LC[k]+'"></span>'+k+'</div>').join('')+largeLeg(),
-rows:[['Class','land_use_display','txt'],['Share of largest class','share','pct'],['Population','population_block','f1']]},
-population:{f:p=>p.population_block>0?{fillColor:ramp(SEQ.blue,p.pph/C.scale.pph),fillOpacity:.85}:{fillColor:NA,fillOpacity:.5},
-leg:()=>cbar('People per hectare',SEQ.blue,'0',Math.round(C.scale.pph)+'+')+nodata('no population')+largeLeg(),
-rows:[['Population (distributed)','population_block','f1'],['People per hectare','pph','f1'],['Dwellings','n_dwellings','int'],['Area, m²','area_m2','int']]},
-density:{f:p=>p.fsi>0?{fillColor:ramp(SEQ.blue,p.fsi/C.scale.fsi),fillOpacity:.85}:{fillColor:NA,fillOpacity:.5},
-leg:()=>cbar('fsi (floor space index)',SEQ.blue,'0',C.scale.fsi.toFixed(2)+'+')+nodata('no buildings')+largeLeg(),
-rows:[['fsi','fsi','f3'],['gsi','gsi','f3'],['L (mean floors)','l','f2'],['OSR','osr','osr'],['Official buildings','n_official_q2','int']]},
-access:{f:p=>({fillColor:ramp(SEQ.heat,(p.median_accessibility-C.scale.acc[0])/(C.scale.acc[1]-C.scale.acc[0])),fillOpacity:.85}),
-leg:()=>cbar('Median walking time to the other blocks, min',SEQ.heat,Math.round(C.scale.acc[0]),Math.round(C.scale.acc[1])+'+')+largeLeg(),
-rows:[['Median walking time, min','median_accessibility','f1']]},
-schools:{f:p=>{if(state.school==='time')return {fillColor:ramp(SEQ.heat,p.time_to_basic_school_min/C.scale.time),fillOpacity:.85};
-const v=p['provision_strong_'+state.school];return v==null?{fillColor:NA,fillOpacity:.5}:{fillColor:v>=1?'#4daf4a':'#e41a1c',fillOpacity:.8}},
-leg:()=>(state.school==='time'?cbar('Walking time to the nearest basic school, min',SEQ.heat,'0',Math.round(C.scale.time)+'+'):
-'<b>Served within '+state.school+' min</b><div class="row"><span class="sw" style="background:#4daf4a"></span>children served</div><div class="row"><span class="sw" style="background:#e41a1c"></span>not served</div>'+nodata('no children'))+
-'<div class="row">&#9733; basic school &nbsp; &#9650; other school</div>'+largeLeg(),
-rows:[['Time to basic school, min','time_to_basic_school_min','f1'],['Time to gymnasium, min','time_to_gymnasium_min','f1'],['Children 7-15','children_7_15','int'],
-['Served within 10 / 15 / 20 min',null,null]]},
-q2:{f:p=>p.match_rate==null?{fillColor:NA,fillOpacity:.45}:{fillColor:ramp(SEQ.rdylgn,(p.match_rate-.5)/.5),fillOpacity:.65},
-leg:()=>cbar('Share of official buildings with an OSM pair',SEQ.rdylgn,'0.5 or less','1')+nodata('no official buildings')+
-['official|official, no OSM pair','osm|OSM, no official pair','absent|OSM, possibly demolished, not verified'].map(s=>{const a=s.split('|');
-return '<div class="row"><span class="sw" style="border-radius:50%;background:'+QC[a[0]]+'"></span>'+a[1]+'</div>'}).join('')+largeLeg(),
-rows:[['Match rate','match_rate','pct'],['Official buildings','n_official_q2','int'],['Official without pair','n_official_unmatched','int'],
-['OSM buildings','n_osm_q2','int'],['OSM without pair','n_osm_unmatched','int'],['Floors in register','floors_coverage_official','pct']]}
-};
-['methods','sources','checks'].forEach(k=>T[k]={f:p=>({fillColor:'#2c7fb8',fillOpacity:.32}),leg:()=>'',rows:[['Population (distributed)','population_block','f1'],['Area, m²','area_m2','int']]});
-T.overview.rows=T.landuse.rows;
-function cbar(t,st,a,b){return '<b>'+t+'</b><div class="bar" style="background:'+grad(st)+'"></div><div class="lr"><span>'+a+'</span><span>'+b+'</span></div>'}
-function nodata(t){return '<div class="row"><span class="sw" style="background:'+NA+'"></span>'+t+'</div>'}
-function largeLeg(){return '<div class="row"><span class="sw" style="background:#fff;border:2px solid #1b4f9c"></span>large block</div>'}
-function popup(p){const rows=(T[cur].rows||[]).map(r=>{if(r[1]===null)return '<tr><td>'+r[0]+'</td><td>'+[10,15,20].map(t=>{const v=p['provision_strong_'+t];return v==null?'-':(v>=1?'yes':'no')}).join(' / ')+'</td></tr>';
-return '<tr><td>'+r[0]+'</td><td style="text-align:right">'+fmt[r[2]](p[r[1]])+'</td></tr>'}).join('');
-return '<b>Block '+p.block_id+'</b>'+(p.large_block?' (large block)':'')+'<table>'+rows+'</table>'}
-const blocks=L.geoJSON(D.blocks,{style:f=>Object.assign({fillOpacity:.5},base(f.properties),T[cur].f(f.properties)),
-onEachFeature:(f,l)=>{byId[f.properties.block_id]=l;l.on('click',()=>{select(f.properties.block_id,false)})}}).addTo(map);
-function restyle(){blocks.setStyle(f=>Object.assign({},base(f.properties),T[cur].f(f.properties)));if(sel){byId[sel].setStyle({color:'#000',weight:3.2});byId[sel].bringToFront()}}
-function select(id,zoom){sel=id;restyle();const l=byId[id];l.bindPopup(popup(l.feature.properties)).openPopup(l.getBounds().getCenter());
-l.on('popupclose',()=>{if(sel===id){sel=null;restyle()}});if(zoom)map.fitBounds(l.getBounds(),{maxZoom:17,padding:[40,40]})}
-const sch=L.layerGroup(),q2g={official:L.layerGroup(),osm:L.layerGroup(),absent:L.layerGroup()};
-L.geoJSON(D.schools,{pointToLayer:(f,ll)=>L.marker(ll,{icon:L.divIcon({className:'',iconSize:[22,22],iconAnchor:[11,11],
-html:'<div style="font-size:'+(f.properties.basic?24:15)+'px;line-height:22px;text-align:center;color:'+(f.properties.basic?'#d73027':'#111')+';text-shadow:0 0 3px #fff,0 0 3px #fff">'+(f.properties.basic?'&#9733;':'&#9650;')+'</div>'})}).bindPopup('<b>'+f.properties.name+'</b><br>'+f.properties.kind+'<br>Pupils 2026: '+f.properties.students+'<br>'+f.properties.address)}).addTo(sch);
-const kindsList=C.kinds,stTxt={no_osm_pair:'no OSM pair',no_etak_tag:'no maaamet:ETAK tag',etak_id_in_town_layer:'ETAK id is in the official town layer',etak_id_in_bbox_only:'ETAK id only outside the town',
-absent_from_official_data:'ETAK id is in no official building: possibly demolished, not verified'};
-const cvs=L.canvas({padding:.5});
-D.points.forEach(p=>{L.circleMarker([p[1],p[0]],{renderer:cvs,radius:p[2]==='absent'?6:4.5,color:'#fff',weight:1,fillColor:QC[p[2]],fillOpacity:.95})
-.bindPopup('<b>'+(p[2]==='official'?'Official':'OSM')+' building '+p[5]+'</b><br>'+kindsList[p[3]]+'<br>'+stTxt[p[4]]).addTo(q2g[p[2]])});
-const leg=L.control({position:'bottomleft'});leg.onAdd=function(){this._d=L.DomUtil.create('div','legend');return this._d};leg.addTo(map);
-const panel=document.getElementById('panel'),nav=document.getElementById('tabs');
-C.tabs.forEach(t=>{const b=document.createElement('button');b.type='button';b.textContent=t[1];b.dataset.id=t[0];b.setAttribute('role','tab');nav.appendChild(b)});
-nav.addEventListener('click',e=>{if(e.target.dataset.id)show(e.target.dataset.id)});
-function show(id){cur=id;sel=null;map.closePopup();[...nav.children].forEach(b=>b.setAttribute('aria-selected',b.dataset.id===id));
-const nm=C.noMap.indexOf(id)>=0;document.getElementById('app').classList.toggle('nomap',nm);if(!nm){map.invalidateSize();if(needFit)fit()}panel.innerHTML=D.text[id];panel.scrollTop=0;
-map[id==='schools'?'addLayer':'removeLayer'](sch);Object.keys(q2g).forEach(k=>{map[id==='q2'&&state.q2[k]?'addLayer':'removeLayer'](q2g[k])});
-if(id==='schools'){const r=panel.querySelector('input[name=schoolmode][value="'+state.school+'"]');if(r)r.checked=true}
-if(id==='q2')panel.querySelectorAll('input[data-q2]').forEach(c=>c.checked=state.q2[c.dataset.q2]);
-restyle();leg._d.innerHTML=T[id].leg();try{history.replaceState(null,'','#'+id)}catch(e){}}
-panel.addEventListener('change',e=>{const t=e.target;
-if(t.name==='schoolmode'){state.school=t.value;restyle();leg._d.innerHTML=T.schools.leg()}
-if(t.dataset.q2){state.q2[t.dataset.q2]=t.checked;map[t.checked?'addLayer':'removeLayer'](q2g[t.dataset.q2])}});
-panel.addEventListener('click',e=>{const c=e.target.closest&&e.target.closest('.pt');if(c)select(+c.dataset.id,true)});
-panel.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.classList&&e.target.classList.contains('pt')){e.preventDefault();select(+e.target.dataset.id,true)}});
-const h=(location.hash||'').slice(1);show(D.text[h]?h:'overview');
-function fit(){const m=document.getElementById('map');if(!m.offsetWidth){needFit=true;return}needFit=false;map.invalidateSize();map.fitBounds(boundary.getBounds(),{padding:[10,10]})}
-fit();window.addEventListener('load',fit);
-window.addEventListener('hashchange',()=>{const k=(location.hash||'').slice(1);if(D.text[k]&&k!==cur)show(k)});
-})();
-"""
-
 leaflet_js = (LEAFLET / "leaflet.js").read_text(encoding="utf-8")
 leaflet_css = (LEAFLET / "leaflet.css").read_text(encoding="utf-8")
 leaflet_licence = (LEAFLET / "LICENSE").read_text(encoding="utf-8").strip()
 assert "</script" not in leaflet_js and "-->" not in leaflet_licence and "--" not in leaflet_licence
 
-page = f"""<!doctype html>
+readme = ROOT / "README.md"
+r = readme.read_text(encoding="utf-8")
+a, z = "<!-- key-findings:start -->", "<!-- key-findings:end -->"
+assert r.count(a) == 1 and r.count(z) == 1
+block = a + "\n" + "\n".join(f"- {x}" for x in FINDINGS) + "\n" + z
+r = r[:r.index(a)] + block + r[r.index(z) + len(z):]
+readme.write_text(r, encoding="utf-8")
+
+# ---------------------------------------------------------------- the page: one sticky map, sections scroll and drive it
+import re
+import base64
+import urllib.parse
+
+# Colours of this page only (the old dashboard.html was written above with its own colours)
+LAND_COLOURS.update({"residential": "#E5B25D", "business": "#E8604C", "industrial": "#7C5E99", "transport": "#8C97A3",
+                     "recreation": "#5FA88A", "special": "#2A6F97", "agriculture": "#A67C52", "mixed": "#D8CBB3"})
+Q2_COLOURS.update({"official": "#12355B", "osm": "#F0A030", "absent": "#C2306E"})
+PALETTE = ["#2A6F97", "#8FC1B5", "#E5B25D", "#E8604C", "#7C5E99", "#5FA88A", "#A67C52", "#8C97A3"]
+NA_COLOUR = "#E3DACA"
+lu_items2 = [(k, int(v), LAND_COLOURS.get(k), None) for k, v in emb["land_use_display"].value_counts().items()]
+sm_names = sorted(n for n in emb["morphotype_spacematrix"].unique() if n != "not defined")
+st_names = sorted(n for n in emb["morphotype_strelka"].unique() if n != "not defined")
+MORPH = {"spacematrix": {n: PALETTE[i % len(PALETTE)] for i, n in enumerate(sm_names)},
+         "strelka": {n: PALETTE[i % len(PALETTE)] for i, n in enumerate(st_names)}}
+
+sm_items_c = []
+for (name, cl), n_ in (emb.groupby(["morphotype_spacematrix", "spacematrix_cluster"], dropna=False).size().items()):
+    if name != "not defined":
+        sm_items_c.append((f"{name} · cluster {int(cl)}", int(n_), MORPH["spacematrix"][name], None))
+sm_items_c.append(("not defined (no buildings)", int((emb["morphotype_spacematrix"] == "not defined").sum()), NA_COLOUR, None))
+st_items_c = [((k if k != "not defined" else "not defined (no buildings)"), int(v),
+               NA_COLOUR if k == "not defined" else MORPH["strelka"][k], None) for k, v in st_counts.items()]
+mxi_hist = hist_svg(emb["mxi"].dropna(), "mxi (living share of floor area)")
+acc_hist = hist_svg(reg["median_accessibility"], "median walking time to the other blocks, min")
+
+bands = [(0, 10), (10, 15), (15, 20), (20, 30), (30, 60)]
+band_items = []
+for lo, hi in bands:
+    ch = int(emb.loc[(t_basic > lo) & (t_basic <= hi), "children_7_15"].sum()) if lo else int(emb.loc[t_basic <= hi, "children_7_15"].sum())
+    band_items.append((f"{lo}–{hi} min" if lo else f"up to {hi} min", ch, None, None))
+band_items.append((f"over {bands[-1][1]} min", int(emb.loc[t_basic > bands[-1][1], "children_7_15"].sum()), None, None))
+
+status_label = {"no_etak_tag": "OSM, no maaamet:ETAK tag", "etak_id_in_town_layer": "OSM, ETAK id is in the official town layer",
+                "etak_id_in_bbox_only": "OSM, ETAK id only outside the town",
+                "absent_from_official_data": "OSM, ETAK id absent from official data (possibly demolished, not verified)"}
+q2_status_items = [(status_label[k], int(v), Q2_COLOURS["absent"] if k == "absent_from_official_data" else Q2_COLOURS["osm"], None)
+                   for k, v in mq["status"].value_counts().items()]
+q2_kind_items = [(f"Official, {k}", int(v), Q2_COLOURS["official"], None) for k, v in oq["kind"].value_counts().head(4).items()]
+
+SC_ORDER = [k for k in gs["land_use_display"].value_counts().index]
+SC_LEGEND = ('<div class="lg">' + "".join(f'<span><i style="background:{LAND_COLOURS.get(k, "#999")}"></i>{esc(k)}</span>' for k in SC_ORDER)
+             + '<span>larger dot = large block</span></div>')
+res_blocks = int((emb["land_use_display"] == "residential").sum())
+top10_share = float(top10["population_block"].sum() / N["pop"])
+n_dev = int((emb["fsi"] > 0).sum())
+high_rise = int((emb["l"] >= 9).sum())
+lead = {
+    "landuse": f"{num(res_blocks)} of {num(N['blocks'])} blocks are residential by their cadastral purpose, but {pct(non_res_pop)} "
+               f"of the people live in blocks of another class.",
+    "population": f"{num(N['pop_census'])} people are spread over {num(pop_blocks)} blocks with dwellings; the 10 most populated "
+                  f"blocks hold {pct(top10_share, 0)} of them. The median is {num(dens.median(), 0)} people per hectare.",
+    "density": f"Typical built blocks are low and loose: of {num(n_dev)} blocks with buildings the median fsi is "
+               f"{emb.loc[emb['fsi'] > 0, 'fsi'].median():.2f} and the median block has {emb['l'].median():.1f} floors on average"
+               f"{'; no block reaches the high-rise group' if high_rise == 0 else ''}.",
+    "access": f"Walking between blocks takes a median of {num(N['acc_med'], 1)} min; the most remote block has a median of "
+              f"{num(N['acc_max'], 1)} min to all others.",
+    "schools": f"{children_line}: {pct(walk[10]['share'])} within 10 min, {pct(walk[15]['share'])} within 15 min.",
+    "q2": f"{num(N['off_un'])} official buildings have no OSM pair and {num(N['osm_un'])} OSM buildings have no official pair; "
+          f"{num(N['osm_un_absent'])} of them carry an ETAK id absent from current official data (possibly demolished, not verified).",
+}
+note = {
+    "landuse": "Cadastral land-use purpose (legal), not actual use. A block is <i>mixed</i> if its largest class covers less than "
+               f"{int(MIXED_SHARE * 100)} % of the parcels.",
+    "population": "The census total of Haapsalu linn is distributed over the blocks by registry net area of the dwellings; it is not "
+                  f"a count per block. The scale is clipped at the 95th percentile ({num(scale['pph'], 0)} people per hectare).",
+    "density": f"fsi = floor area / block area; gsi = footprint / block area; L = fsi / gsi; OSR = (1 − gsi) / fsi; "
+               f"MXI = living share of the gross floor area. The fsi scale is clipped at the 95th percentile ({scale['fsi']:.2f}). "
+               "Morphotypes are BlocksNet results (thresholds and cluster names are BlocksNet's, not ours).",
+    "access": f"Walking network of OpenStreetMap at {WALK_SPEED_KMH} km/h (a conditional assumption). The scale is clipped at the "
+              f"98th percentile ({scale['acc'][1]:.0f} min).",
+    "schools": "Basic schools (red stars) are the two municipal schools of the main calculation; their places are the pupils of "
+               "2026, not capacity. Demand: children 7-15 of the census 2021, distributed by population. PGS § 7 (3) is met "
+               f"on foot: {pct(walk[60]['share'])} of the children are within 60 min.",
+    "q2": "A pair is an official and an OSM building whose overlap is more than 50 % of the smaller one. Only numbers, no conclusions.",
+}
+
+cards_html = "".join([
+    card(num(N['pop_census']), 'inhabitants, census 2021 (distributed over the blocks)'),
+    card(num(N['blocks']), 'urban blocks; ' + num(N['built_up']) + ' with buildings'),
+    card(num(N['off']) + ' / ' + num(N['osm']), 'buildings: official / OpenStreetMap'),
+    card(num(N['children']), 'children aged 7-15 (census 2021), distributed'),
+    card(num(N['places']), 'pupils in the two basic schools, 2026'),
+    card(pct(N['match_town']), 'official buildings with an OSM pair')])
+
+
+def fig(title, svg, mapid=None, cap=""):
+    m = f' data-mapid="{mapid}"' if mapid else ""
+    return f'<figure class="chart"{m}><figcaption>{esc(title)}</figcaption>{svg}{f"<p class=note>{cap}</p>" if cap else ""}</figure>'
+
+
+def body_of(key):
+    return re.sub(r"^\s*<h2>.*?</h2>", "", T[key], count=1, flags=re.S)
+
+
+FONTS_HTML = (f'<p><b>Fonts</b>: Fraunces (&copy; The Fraunces Project Authors) for headings and numbers, and Source Sans 3 '
+              f'(&copy; Adobe) for text, both under the <a href="https://openfontlicense.org">SIL Open Font License 1.1</a>. They are embedded '
+              f'in this page (latin subset, from Google Fonts); the licence texts are in <a href="{REPO_URL}/tree/main/vendor/fonts">'
+              f'<code>vendor/fonts/</code></a>. The lace pattern is a simple geometric drawing inspired by Haapsalu lace shawls.</p>')
+summary_body = (
+    f"<p>{num(len(reg))} blocks without the {N['large']} large blocks. Missing = blocks where the indicator is empty.</p>"
+    + table(['Indicator', 'N', 'Mean', 'Median', 'Min', 'Max', 'Missing'], sum_rows)
+    + "<h3>Large blocks</h3>" + table(['Block', 'Area, km²', 'People', 'gsi', 'fsi', 'l', 'osr', 'mxi', 'Walk, min', 'School, min'], big_rows)
+    + '<div class="split2">' + fig("fsi, blocks with buildings", hist_svg(reg.loc[reg['fsi'] > 0, 'fsi'], 'fsi (floor space index)'))
+    + fig("l, mean number of floors", hist_svg(reg['l'].dropna(), 'l (mean number of floors)')) + "</div>")
+details_html = "".join(f'<details><summary>{esc(t)}</summary><div class="body">{b}</div></details>' for t, b in [
+    ("Summary statistics", summary_body), ("Methods & limitations", body_of("methods")),
+    ("Data & credits", body_of("sources") + FONTS_HTML), (f"Checks: {n_ok} of {len(checks)} agree", body_of("checks"))])
+
+NAV = [("overview", "Overview"), ("landuse", "Land use"), ("population", "Population"), ("density", "Density"),
+       ("access", "Accessibility"), ("schools", "Schools"), ("q2", "OSM vs official"), ("details", "Details")]
+nav_html = "".join(f'<a href="#{i}">{esc(t)}</a>' for i, t in NAV)
+
+def _uri(svg):
+    return "data:image/svg+xml," + urllib.parse.quote(svg, safe="")
+
+
+LACE = _uri("<svg xmlns='http://www.w3.org/2000/svg' width='32' height='16' viewBox='0 0 32 16' fill='none' stroke='#8FC1B5' stroke-width='1'>"
+            "<path d='M0 8 Q8 0 16 8 T32 8'/><path d='M16 4.5 L19.5 8 L16 11.5 L12.5 8 Z'/>"
+            "<circle cx='8' cy='2.2' r='1.1' fill='#8FC1B5'/><circle cx='24' cy='13.8' r='1.1' fill='#8FC1B5'/></svg>")
+LATTICE = _uri("<svg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56' fill='none' stroke='#8FC1B5' stroke-width='1'>"
+               "<path d='M28 2 L54 28 L28 54 L2 28 Z'/><path d='M28 12 L44 28 L28 44 L12 28 Z'/><circle cx='28' cy='28' r='3'/>"
+               "<circle cx='28' cy='2' r='1.6' fill='#8FC1B5'/><circle cx='28' cy='54' r='1.6' fill='#8FC1B5'/>"
+               "<circle cx='2' cy='28' r='1.6' fill='#8FC1B5'/><circle cx='54' cy='28' r='1.6' fill='#8FC1B5'/>"
+               "<circle cx='0' cy='0' r='2.4' fill='#8FC1B5'/><circle cx='56' cy='0' r='2.4' fill='#8FC1B5'/>"
+               "<circle cx='0' cy='56' r='2.4' fill='#8FC1B5'/><circle cx='56' cy='56' r='2.4' fill='#8FC1B5'/></svg>")
+FONT_DIR = ROOT / "vendor" / "fonts"
+
+
+def _font(family, fname):
+    b64 = base64.b64encode((FONT_DIR / fname).read_bytes()).decode("ascii")
+    return (f'@font-face{{font-family:"{family}";font-style:normal;font-weight:400 700;font-display:swap;'
+            f'src:url(data:font/woff2;base64,{b64}) format("woff2")}}\n')
+
+
+FONT_CSS = _font("Fraunces", "Fraunces-latin-variable.woff2") + _font("Source Sans 3", "SourceSans3-latin-variable.woff2")
+CSS2 = FONT_CSS + """
+:root{--bg:#F4EDE1;--card:#FBF7F0;--fg:#12355B;--mut:#4A6078;--line:#DCCFB8;--acc:#2A6F97;--coral:#E8604C;--coral-dk:#B93F2E;--sea:#8FC1B5;--shadow:0 2px 10px rgba(18,53,91,.09)}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.6 "Source Sans 3",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+h1,h2,.lead,.card b,details>summary{font-family:Fraunces,Georgia,"Times New Roman",serif}
+.card b,.lead,h1,h2,table,ul.kf,.hl,details>summary,.legend,.chart{font-variant-numeric:lining-nums tabular-nums}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+a{color:var(--acc)}code{font-size:.9em}
+a:focus-visible,summary:focus-visible,.pt:focus-visible,.btn:focus-visible{outline:3px solid var(--coral);outline-offset:2px}
+.hero{position:relative;overflow:hidden;padding:36px 0 40px}
+.hero::before{content:"";position:absolute;inset:0;background:url(""" + LATTICE + """) repeat;opacity:.6;-webkit-mask-image:linear-gradient(100deg,transparent 40%,#000 100%);mask-image:linear-gradient(100deg,transparent 40%,#000 100%)}
+.hero::after{content:"";position:absolute;left:0;right:0;bottom:6px;height:16px;background:url(""" + LACE + """) repeat-x center}
+.hero .wrap{position:relative}
+.hero h1{font-size:clamp(32px,5vw,50px);font-weight:600;line-height:1.1;letter-spacing:-.01em;margin:0 0 10px}
+.hero .sub{font-size:clamp(17px,2vw,20px);color:var(--mut);max-width:760px;margin:0 0 16px}
+.hero .meta{display:flex;flex-wrap:wrap;gap:10px 20px;align-items:center;color:var(--mut);font-size:15px}
+.btn{display:inline-block;background:var(--coral-dk);color:#fff!important;padding:9px 20px;border-radius:999px;text-decoration:none;font-weight:600;font-size:16px;box-shadow:var(--shadow)}
+.btn:hover{background:#9C3324}
+nav.top{position:sticky;top:0;z-index:2000;background:rgba(244,237,225,.97);border-bottom:1px solid var(--line)}
+nav.top .wrap{display:flex;flex-wrap:wrap;gap:2px 18px;padding:8px 20px}
+nav.top a{font-size:15px;color:var(--fg);text-decoration:none;padding:2px 1px;border-bottom:3px solid transparent}
+nav.top a:hover{border-bottom-color:var(--sea)}
+nav.top a.on{border-bottom-color:var(--coral);font-weight:700}
+section{padding:0 0 36px;scroll-margin-top:84px}
+section+section::before{content:"";display:block;height:16px;background:url(""" + LACE + """) repeat-x center;margin:0 0 30px}
+#overview{padding-top:26px}
+h2{font-size:clamp(26px,3.2vw,34px);font-weight:600;margin:0 0 8px}h3{font-size:17px;margin:16px 0 6px}
+.lead{font-size:clamp(21px,2.7vw,29px);line-height:1.3;font-weight:500;margin:0 0 10px;max-width:940px}
+.note{color:var(--mut);font-size:15px;max-width:920px}
+.hl{color:var(--coral-dk);font-weight:700}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:14px 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 16px;box-shadow:var(--shadow)}
+.card b{display:block;font-size:clamp(24px,2.4vw,30px);font-weight:600;line-height:1.15;color:var(--acc)}.card span{font-size:14px;color:var(--mut)}
+.cards.top{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.75fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)}
+@media (min-width:1000px){.cards.top .card b{white-space:nowrap}}
+@media (max-width:999px){.cards.top{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:560px){.cards.top{grid-template-columns:repeat(2,minmax(0,1fr))}.cards.top .card:nth-child(3),.cards.top .card:nth-child(6){grid-column:span 2}}
+ul.kf{list-style:none;margin:8px 0 4px;padding:0;font-size:18.5px}
+ul.kf li{position:relative;padding-left:24px;margin:8px 0}
+ul.kf li::before{content:"";position:absolute;left:3px;top:.62em;width:8px;height:8px;background:var(--coral);transform:rotate(45deg)}
+.split{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:22px;align-items:start;margin-top:12px}
+.split2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.mapbox{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:var(--shadow)}
+.map{height:clamp(440px,74vh,720px);background:#DCE9EA;isolation:isolate}
+.leaflet-container{font-family:inherit}
+.modes{display:flex;flex-wrap:wrap;gap:4px 16px;padding:10px 14px;font-size:15px}.modes:empty{display:none}
+.legend{padding:10px 14px 12px;font-size:14px;line-height:1.45;color:var(--fg)}
+.legend .bar{height:10px;max-width:260px;border:1px solid #6b7c8f;margin:3px 0}.legend .lr{display:flex;justify-content:space-between;max-width:260px}
+.legend .sw{display:inline-block;width:12px;height:12px;margin:0 5px 0 0;vertical-align:-2px;border:1px solid #6b7c8f}
+.legend .it{display:inline-block;margin:0 14px 2px 0}
+.side{min-width:0}
+figure.chart{margin:0 0 18px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 14px;box-shadow:var(--shadow)}
+figure.chart figcaption{font-weight:700;font-size:16px;margin-bottom:4px}
+.chart svg{width:100%;height:auto;max-width:560px}
+.chart .bar{fill:var(--acc)}.chart .bl,.chart .bv{fill:var(--fg);font-size:11px}
+.chart .gr{stroke:var(--line);stroke-width:.6}.chart .tk,.chart .gt,.chart .ax{fill:var(--mut);font-size:10px}
+.chart .gl{stroke:#6b7c8f;stroke-width:1}.chart .go{stroke:#6b7c8f;stroke-width:1;stroke-dasharray:4 3}
+.chart .lg{display:flex;flex-wrap:wrap;gap:2px 12px;font-size:14px;margin-top:6px}.chart .lg i{display:inline-block;width:11px;height:11px;border-radius:50%;border:1px solid var(--fg);margin-right:4px;vertical-align:-1px}
+.chart .pt{cursor:pointer}.chart circle.pt{stroke:var(--fg);stroke-width:.6}.chart .pt:hover,.chart .pt:focus{stroke:var(--coral);stroke-width:2}
+.tw{overflow-x:auto;margin:8px 0}
+table{border-collapse:collapse;width:100%;font-size:14.5px;background:var(--card)}
+thead th{background:#F1E8D8;color:var(--fg)}
+th,td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+td:not(:first-child),th:not(:first-child){text-align:right}table.checks td:last-child{text-align:left}
+details{background:var(--card);border:1px solid var(--line);border-radius:16px;margin:12px 0;box-shadow:var(--shadow)}
+details>summary{cursor:pointer;padding:15px 20px;font-weight:600;font-size:21px}
+details>.body{padding:0 20px 20px}
+.bm{display:flex;flex-direction:column;align-items:flex-end;font-size:13px;line-height:1.4;color:var(--fg)}
+.bm .bmb{width:34px;height:34px;padding:0;display:flex;align-items:center;justify-content:center;background:rgba(251,247,240,.96);border:1px solid var(--line);border-radius:8px;cursor:pointer;box-shadow:var(--shadow)}
+.bm .bmb:hover{background:#fff}
+.bm .bmp{margin-top:4px;background:rgba(251,247,240,.97);border:1px solid var(--line);padding:6px 10px;border-radius:8px;box-shadow:var(--shadow)}
+.bm .bmp[hidden]{display:none}.bm label{display:block;white-space:nowrap}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:3px}
+footer{padding:10px 0 56px;color:var(--mut);font-size:14px}
+@media (max-width:800px){
+.split{grid-template-columns:1fr}
+.map{height:470px}
+.wrap{padding:0 16px}nav.top .wrap{padding:6px 16px;gap:2px 14px}
+.hero{padding:26px 0 36px}.hero::before{opacity:.35;-webkit-mask-image:linear-gradient(100deg,transparent 60%,#000 100%);mask-image:linear-gradient(100deg,transparent 60%,#000 100%)}
+section{scroll-margin-top:96px}
+ul.kf{font-size:17px}
+}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+"""
+
+config2 = dict(tiles=TILES, attribution=f"Aluskaart: Maa- ja Ruumiamet {BASEMAP_YEAR}", landColours=LAND_COLOURS, q2Colours=Q2_COLOURS,
+               scale=scale, kinds=kinds, morph=MORPH)
+data2 = json.dumps({"config": config2, "blocks": blocks_fc, "boundary": boundary_fc, "schools": schools_fc, "points": points},
+                   ensure_ascii=False, separators=(",", ":"), allow_nan=False).replace("</", "<\\/")
+
+def hl(x):
+    t = re.sub(r"(\d[\d.,]*(?:\u2013\d[\d.,]*)?\s?(?:%|\u00d7))", r'<strong class="hl">\1</strong>', esc(x))
+    return re.sub(r"^(\d+)", r'<strong class="hl">\1</strong>', t) if t[:1].isdigit() else t
+
+
+note3 = dict(note)
+note3["density"] = ("Colour the map by fsi, MXI or a BlocksNet morphotype. Hover or click a dot of the chart or a block of the map "
+                    "to find it on both.")
+note3["population"] = note["population"]
+DEFAULT_MODE = {"landuse": "landuse", "population": "population", "density": "fsi", "access": "access", "schools": "time", "q2": "q2"}
+
+
+def radios(name, items, checked):
+    return ('<div class="modes3" role="radiogroup">' + "".join(
+        f'<label><input type="radio" name="{name}" value="{v}"{" checked" if v == checked else ""}> {esc(t)}</label>'
+        for v, t in items) + "</div>")
+
+
+def sec3(sid, title, body):
+    return (f'<section id="{sid}"><h2>{esc(title)}</h2><p class="lead">{lead[sid]}</p>'
+            f'<p class="note">{note3[sid]}</p>{body}</section>')
+
+
+def more(title, inner):
+    return f'<details class="more"><summary>{esc(title)}</summary><div class="body">{inner}</div></details>'
+
+
+def morph_items(col, colours, with_clusters):
+    g = emb.groupby(col).agg(n=("block_id", "size"), k=("spacematrix_cluster", "nunique"))
+    items = []
+    for name in sorted(x for x in g.index if x != "not defined"):
+        n_, k_ = int(g.loc[name, "n"]), int(g.loc[name, "k"])
+        label = f"{name} · {k_} clusters" if with_clusters and k_ > 1 else name
+        items.append((label, n_, colours[name], None))
+    items.append(("not defined (no buildings)", int(g.loc["not defined", "n"]) if "not defined" in g.index else 0, NA_COLOUR, None))
+    return items
+
+
+sm_group = morph_items("morphotype_spacematrix", MORPH["spacematrix"], True)
+st_group = morph_items("morphotype_strelka", MORPH["strelka"], False)
+assert len(sm_group) <= 7 and len(st_group) <= 7
+morph_chart = ('<figure class="chart"><figcaption>Blocks by morphotype (BlocksNet)</figcaption>'
+               '<div class="modes3"><label><input type="radio" name="morphchart" value="sm" checked> Spacematrix</label>'
+               '<label><input type="radio" name="morphchart" value="st"> Strelka</label></div>'
+               f'<div class="morphchart" data-k="sm">{bars_svg(sm_group, aria="Blocks by Spacematrix morphotype")}'
+               '<p class="note">Clusters with the same name are added up (KMeans of l, fsi, mxi).</p></div>'
+               f'<div class="morphchart" data-k="st" hidden>{bars_svg(st_group, aria="Blocks by Strelka morphotype")}'
+               '<p class="note">Rules and thresholds are in the BlocksNet code, not ours.</p></div></figure>')
+
+body3 = {
+    "landuse": fig("Blocks by land-use class", bars_svg(lu_items2, aria="Blocks by land use"))
+    + more("More on land use", table(['Class', 'Blocks', 'Population', 'Share of population', 'Area, km²'], lu_rows)),
+    "population": fig("10 blocks with the most people", bars_svg(top_items, aria="Top 10 blocks by population"), None,
+                      "Distributed census population. Hover or click a bar to find the block on the map.")
+    + more("More on population", f"<p>The census total is distributed over the blocks by the registry net area of the dwellings. "
+           f"For comparison, the same population estimated from floor area would be {num(popcheck['population_net'])} people "
+           f"({popcheck['ratio_net_to_official']:.2f} times the census) from the registry net area and "
+           f"{num(popcheck['population_gross'])} ({popcheck['ratio_gross_to_official']:.2f} times) from footprint × floors, "
+           f"which is why the total is distributed instead.</p>"),
+    "density": radios("mode-density", [("fsi", "Floor space index (fsi)"), ("mxi", "MXI (living share)"),
+                                       ("spacematrix", "Spacematrix morphotype"), ("strelka", "Strelka morphotype")], "fsi")
+    + fig("Spacematrix: fsi against gsi", scatter() + SC_LEGEND, None,
+          "Dot colour = land-use class. Solid lines: constant L (mean floors); dashed: constant OSR.")
+    + morph_chart
+    + more("More on density",
+           f"<p>{note['density']}</p>"
+           + fig("All Spacematrix clusters", bars_svg(sm_items_c, aria="Blocks by Spacematrix cluster"),
+                 cap=f"Each bar is one KMeans cluster ({nbnum['morphotype_params']['spacematrix_n_clusters']} clusters, random_state "
+                     f"{nbnum['morphotype_params']['spacematrix_random_state']}, scikit-learn {esc(nbnum['morphotype_params']['scikit_learn'])}). "
+                     f"<b>Different clusters can have the same name</b> because the name comes from the cluster medians "
+                     f"({esc('; '.join(dup_names)) if dup_names else 'none here'}).")
+           + fig("MXI of the blocks with buildings", mxi_hist,
+                 cap="The whole building counts as living if it has a dwelling use; sheds and garages count as non-living.")),
+    "access": fig("Median walking time to the other blocks", acc_hist),
+    "schools": radios("mode-schools", [("time", "Walking time"), ("p10", "Served within 10 min"), ("p15", "within 15 min"),
+                                       ("p20", "within 20 min")], "time")
+    + fig("Children aged 7-15 by walking time to the nearest basic school", bars_svg(band_items, aria="Children by walking time"))
+    + more("More on schools", '<h3>Children within a walking time</h3>' + table(['Walking time', 'Children', 'Share of the children', 'Blocks'], w_rows)
+           + '<h3>Provision (BlocksNet competitive_provision)</h3>'
+           + table(['Threshold', 'Provision (strong), town', 'Blocks with children not fully served'], p_rows)),
+    "q2": '<div class="cards two">' + card(num(N['off_un']), 'official buildings without an OSM pair (of ' + num(N['off']) + ')')
+    + card(num(N['osm_un']), 'OSM buildings without an official pair (of ' + num(N['osm']) + ')')
+    + card(pct(N['floors_off']), 'official buildings with floors in the register')
+    + card(pct(N['levels_osm']), 'OSM buildings with building:levels') + '</div>'
+    + '<div class="modes3">' + "".join(
+        f'<label><input type="checkbox" data-q2="{k}" checked> <i class="dot" style="background:{Q2_COLOURS[k]}"></i>{t}</label>'
+        for k, t in [("official", "official, no OSM pair"), ("osm", "OSM, no official pair"),
+                     ("absent", "OSM, possibly demolished, not verified")]) + "</div>"
+    + fig("Buildings without a pair", bars_svg(q2_status_items + q2_kind_items, aria="Buildings without a pair")),
+}
+titles3 = {"landuse": "Land use", "population": "Population", "density": "Density", "access": "Accessibility",
+           "schools": "Schools", "q2": "OSM vs official"}
+story_html = "".join(sec3(k, titles3[k], body3[k]) for k in ["landuse", "population", "density", "access", "schools", "q2"])
+
+CSS3 = """
+/* scrollytelling layout */
+.cards.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.modes3{display:flex;flex-wrap:wrap;gap:4px 16px;margin:10px 0;font-size:15px}
+.story{display:block}
+.mapwrap{position:relative;height:100%;border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:var(--shadow);isolation:isolate;background:#DCE9EA}
+#map{position:absolute;inset:0;background:#DCE9EA}
+.maplegend{position:absolute;left:10px;bottom:10px;z-index:1000;max-width:min(330px,72%);max-height:60%;overflow:auto;background:rgba(251,247,240,.95);
+border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:13px;line-height:1.4;color:var(--fg);box-shadow:var(--shadow)}
+.maplegend .bar{height:10px;max-width:260px;border:1px solid #6b7c8f;margin:3px 0}.maplegend .lr{display:flex;justify-content:space-between;max-width:260px}
+.maplegend .sw{display:inline-block;width:12px;height:12px;margin:0 5px 0 0;vertical-align:-2px;border:1px solid #6b7c8f}
+.maplegend .it{display:inline-block;margin:0 12px 2px 0}
+.textcol section{padding:30px 0 24px;min-height:88vh;scroll-margin-top:60px}
+.textcol section:first-child{padding-top:30px}
+.textcol figure.chart{margin:14px 0}
+details.more{box-shadow:none;margin:10px 0;border-radius:12px}
+details.more>summary{font-size:17px;padding:10px 14px}details.more>.body{padding:0 14px 14px}
+.tt{background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:8px;font:14px "Source Sans 3",system-ui,sans-serif;box-shadow:var(--shadow)}
+.leaflet-popup-content{font-size:14px;margin:12px 14px;font-family:"Source Sans 3",system-ui,sans-serif;font-variant-numeric:lining-nums tabular-nums}
+.leaflet-popup-content table{font-size:13px}
+.chart .hot{stroke:var(--coral)!important;stroke-width:2.6!important}.chart rect.hot{fill:var(--coral)}
+@media (min-width:1000px){
+.story{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);align-items:start}
+.story::before{grid-column:1/-1}
+.mapcol{position:sticky;top:46px;height:calc(100vh - 46px);padding:12px 8px 14px 20px}
+.textcol{padding:0 28px 0 24px;min-width:0}
+}
+@media (max-width:999px){
+nav.top{position:static}
+.mapcol{position:sticky;top:0;z-index:1500;height:50vh;height:50dvh;padding:6px 12px;background:var(--bg)}
+.maplegend{font-size:12px;padding:6px 9px;max-height:46%;left:8px;bottom:8px}
+.maplegend .bar{max-width:200px}.maplegend .lr{max-width:200px}
+.textcol{padding:0 16px}
+.textcol section{min-height:60vh;scroll-margin-top:calc(50vh + 12px)}
+.cards.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+"""
+
+JS3 = r"""
+(function(){
+const D=JSON.parse(document.getElementById('data').textContent),C=D.config,LC=C.landColours,QC=C.q2Colours,MC=C.morph,NA='#E3DACA';
+const SEQ={blue:['#F6EFDF','#CFE3DC','#8FC1B5','#4F94A6','#1D4E7A'],heat:['#FBEFD5','#F4C98A','#EE9A62','#E8604C','#A8322F'],
+rdylgn:['#C9473A','#EE9A62','#F6EFDF','#9CCBBE','#2F8A7A'],green:['#F4F0E4','#CFE3DC','#8FC1B5','#3E8F82','#16524F']};
+function hex(h){return [1,3,5].map(i=>parseInt(h.substr(i,2),16))}
+function ramp(st,t){t=Math.max(0,Math.min(1,t));const k=t*(st.length-1),i=Math.min(st.length-2,Math.floor(k)),f=k-i,a=hex(st[i]),b=hex(st[i+1]);return 'rgb('+a.map((x,j)=>Math.round(x+(b[j]-x)*f)).join(',')+')'}
+function grad(st){return 'linear-gradient(to right,'+st.join(',')+')'}
+const fmt={int:v=>v==null?'-':Math.round(v).toLocaleString('en'),f1:v=>v==null?'-':v.toFixed(1),f2:v=>v==null?'-':v.toFixed(2),f3:v=>v==null?'-':v.toFixed(3),
+pct:v=>v==null?'-':(100*v).toFixed(1)+' %',osr:v=>v==null?'-':(v>100?'> 100':v.toFixed(2)),txt:v=>v==null?'-':v};
+function cbar(t,st,a,b){return '<b>'+t+'</b><div class="bar" style="background:'+grad(st)+'"></div><div class="lr"><span>'+a+'</span><span>'+b+'</span></div>'}
+function sw(c,round){return '<span class="sw" style="background:'+c+(round?';border-radius:50%':'')+'"></span>'}
+function cat(t,pairs){return '<b>'+t+'</b><br>'+pairs.map(p=>'<span class="it">'+sw(p[1])+p[0]+'</span>').join('')}
+function nodata(t){return '<span class="it">'+sw(NA)+t+'</span>'}
+const LARGE='<span class="it"><span class="sw" style="background:#fff;border:2px solid #12355B"></span>large block</span>';
+const SCHLEG='<span class="it"><span style="color:#d73027;font-size:17px;line-height:1">&#9733;</span> red star: municipal basic schools in the calculation</span><br><span class="it"><span style="font-size:13px">&#9650;</span> triangle: other schools (gymnasium, special school, private school)</span><br>';
+function base(p){return p.large_block?{color:'#12355B',weight:2.6}:{color:'#8794A3',weight:.6}}
+const prov=n=>({f:p=>{const v=p['provision_strong_'+n];return v==null?{fillColor:NA,fillOpacity:.5}:{fillColor:v>=1?'#3E8F82':'#C9473A',fillOpacity:.8}},
+leg:()=>'<b>Served within '+n+' min</b><br><span class="it">'+sw('#3E8F82')+'children served</span><span class="it">'+sw('#C9473A')+'not served</span>'+nodata('no children')+'<br>'+SCHLEG+LARGE,
+tip:p=>{const v=p['provision_strong_'+n];return v==null?'no children':(v>=1?'served within '+n+' min':'not served within '+n+' min')}});
+const morph=(k,key)=>({f:p=>({fillColor:MC[k][p[key]]||NA,fillOpacity:.85}),
+leg:()=>cat((k==='spacematrix'?'Spacematrix':'Strelka')+' morphotype (BlocksNet)',Object.keys(MC[k]).map(n=>[n,MC[k][n]]))+nodata('not defined (no buildings)')+LARGE,
+tip:p=>p[key]});
+const MODE={
+landuse:{f:p=>({fillColor:LC[p.land_use_display]||NA,fillOpacity:.8}),leg:()=>cat('Land use (cadastral purpose)',Object.keys(LC).filter(k=>k!=='agriculture').map(k=>[k,LC[k]]))+LARGE,tip:p=>p.land_use_display},
+population:{f:p=>p.population_block>0?{fillColor:ramp(SEQ.blue,p.pph/C.scale.pph),fillOpacity:.85}:{fillColor:NA,fillOpacity:.5},
+leg:()=>cbar('People per hectare',SEQ.blue,'0',Math.round(C.scale.pph)+'+')+nodata('no population')+LARGE,tip:p=>p.population_block>0?fmt.f1(p.pph)+' people per ha':'no population'},
+fsi:{f:p=>p.fsi>0?{fillColor:ramp(SEQ.blue,p.fsi/C.scale.fsi),fillOpacity:.85}:{fillColor:NA,fillOpacity:.5},
+leg:()=>cbar('fsi (floor space index)',SEQ.blue,'0',C.scale.fsi.toFixed(2)+'+')+nodata('no buildings')+LARGE,tip:p=>p.fsi>0?'fsi '+fmt.f2(p.fsi):'no buildings'},
+mxi:{f:p=>p.mxi==null?{fillColor:NA,fillOpacity:.5}:{fillColor:ramp(SEQ.green,p.mxi),fillOpacity:.85},
+leg:()=>cbar('MXI: living share of the floor area',SEQ.green,'0','1')+nodata('no buildings')+LARGE,tip:p=>p.mxi==null?'no buildings':'MXI '+fmt.f2(p.mxi)},
+spacematrix:morph('spacematrix','morphotype_spacematrix'),strelka:morph('strelka','morphotype_strelka'),
+access:{f:p=>({fillColor:ramp(SEQ.heat,(p.median_accessibility-C.scale.acc[0])/(C.scale.acc[1]-C.scale.acc[0])),fillOpacity:.85}),
+leg:()=>cbar('Median walking time to the other blocks, min',SEQ.heat,Math.round(C.scale.acc[0]),Math.round(C.scale.acc[1])+'+')+LARGE,tip:p=>fmt.f1(p.median_accessibility)+' min'},
+time:{f:p=>({fillColor:ramp(SEQ.heat,p.time_to_basic_school_min/C.scale.time),fillOpacity:.85}),
+leg:()=>cbar('Walking time to the nearest basic school, min',SEQ.heat,'0',Math.round(C.scale.time)+'+')+'<br>'+SCHLEG+LARGE,tip:p=>fmt.f1(p.time_to_basic_school_min)+' min to a basic school'},
+p10:prov(10),p15:prov(15),p20:prov(20),
+q2:{f:p=>p.match_rate==null?{fillColor:NA,fillOpacity:.45}:{fillColor:ramp(SEQ.rdylgn,(p.match_rate-.5)/.5),fillOpacity:.65},
+leg:()=>cbar('Share of official buildings with an OSM pair',SEQ.rdylgn,'0.5 or less','1')+nodata('no official buildings')+'<br><span class="it">'+sw(QC.official,1)+'official, no OSM pair</span><span class="it">'+sw(QC.osm,1)+'OSM, no official pair</span><span class="it">'+sw(QC.absent,1)+'OSM, possibly demolished, not verified</span>'+LARGE,
+tip:p=>p.match_rate==null?'no official buildings':'match rate '+fmt.pct(p.match_rate)}};
+const SECMODE={landuse:'landuse',population:'population',density:'fsi',access:'access',schools:'time',q2:'q2'};
+const state={mode:Object.assign({},SECMODE),active:null,q2:{official:true,osm:true,absent:true}};
+let cur='landuse',sel=null,baseOn=true;
+const ALL=[['Land use','land_use_display','txt'],['People (distributed)','population_block','f1'],['People per hectare','pph','f1'],['fsi','fsi','f3'],['gsi','gsi','f3'],['L (mean floors)','l','f2'],['OSR','osr','osr'],['MXI','mxi','f2'],['Spacematrix','morphotype_spacematrix','txt'],['Strelka','morphotype_strelka','txt'],['Median walking time, min','median_accessibility','f1'],['Time to basic school, min','time_to_basic_school_min','f1'],['Children 7-15','children_7_15','int'],['Served within 10 / 15 / 20 min',null,null],['Official buildings','n_official_q2','int'],['Official without OSM pair','n_official_unmatched','int'],['OSM buildings','n_osm_q2','int'],['OSM without official pair','n_osm_unmatched','int'],['Match rate','match_rate','pct']];
+function popup(p){const rows=ALL.map(r=>{if(r[1]===null)return '<tr><td>'+r[0]+'</td><td style="text-align:right">'+[10,15,20].map(t=>{const v=p['provision_strong_'+t];return v==null?'-':(v>=1?'yes':'no')}).join(' / ')+'</td></tr>';
+return '<tr><td>'+r[0]+'</td><td style="text-align:right">'+fmt[r[2]](p[r[1]])+'</td></tr>'}).join('');
+return '<b>Block '+p.block_id+'</b>'+(p.large_block?' (large block)':'')+'<table>'+rows+'</table>'}
+const map=L.map('map',{preferCanvas:true,minZoom:8,maxZoom:19,zoomSnap:.25,scrollWheelZoom:true});
+const tiles=L.tileLayer(C.tiles,{minZoom:8,maxNativeZoom:18,maxZoom:19,attribution:C.attribution}).addTo(map);
+const bm=L.control({position:'topright'});bm.onAdd=function(){const d=L.DomUtil.create('div','bm');
+d.innerHTML='<button type="button" class="bmb" aria-label="Basemap" aria-expanded="false" title="Basemap"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#12355B" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 12l9 5 9-5"/><path d="M3 16l9 5 9-5"/></svg></button><div class="bmp" hidden><b>Basemap</b><label><input type="radio" name="bm" value="on" checked> Grey map (Maa- ja Ruumiamet)</label><label><input type="radio" name="bm" value="off"> No basemap</label></div>';
+L.DomEvent.disableClickPropagation(d);const btn=d.querySelector('.bmb'),pn=d.querySelector('.bmp');
+btn.addEventListener('click',()=>{const o=pn.hidden;pn.hidden=!o;btn.setAttribute('aria-expanded',o)});
+map.on('click',()=>{pn.hidden=true;btn.setAttribute('aria-expanded',false)});
+d.addEventListener('change',e=>{if(e.target.value==='on'){tiles.addTo(map);tiles.bringToBack()}else map.removeLayer(tiles)});return d};bm.addTo(map);
+const boundary=L.geoJSON(D.boundary,{style:{color:'#12355B',weight:1.6,fill:false},interactive:false}).addTo(map);
+const byId={};
+const styleOf=p=>Object.assign({fillOpacity:.5},base(p),MODE[cur].f(p));
+const blocks=L.geoJSON(D.blocks,{style:f=>styleOf(f.properties),onEachFeature:(f,l)=>{const id=f.properties.block_id;byId[id]=l;
+l.bindTooltip(()=>'<b>Block '+id+'</b> &middot; '+MODE[cur].tip(f.properties),{sticky:true,direction:'top',className:'tt'});
+l.on('mouseover',()=>hot(id,true));l.on('mouseout',()=>hot(id,false));l.on('click',()=>select(id,false))}}).addTo(map);
+function layerStyle(id){const l=byId[id],p=l.feature.properties;return id===sel?Object.assign(styleOf(p),{color:'#12355B',weight:3.4}):styleOf(p)}
+function hot(id,on){const l=byId[id];if(!l)return;if(on){l.setStyle({color:'#E8604C',weight:3.6});l.bringToFront()}else l.setStyle(layerStyle(id));
+document.querySelectorAll('.pt[data-id="'+id+'"]').forEach(e=>e.classList.toggle('hot',on))}
+function restyle(){blocks.setStyle(f=>styleOf(f.properties));if(sel){byId[sel].setStyle(layerStyle(sel));byId[sel].bringToFront()}
+document.getElementById('maplegend').innerHTML=MODE[cur].leg()}
+function select(id,zoom){sel=id;restyle();const l=byId[id];l.bindPopup(popup(l.feature.properties),{maxHeight:300,maxWidth:300}).openPopup(l.getBounds().getCenter());
+l.once('popupclose',()=>{if(sel===id){sel=null;l.setStyle(layerStyle(id))}});if(zoom)map.fitBounds(l.getBounds(),{maxZoom:16,padding:[50,50]})}
+const sch=L.layerGroup();L.geoJSON(D.schools,{pointToLayer:(f,ll)=>L.marker(ll,{icon:L.divIcon({className:'',iconSize:[22,22],iconAnchor:[11,11],
+html:'<div style="font-size:'+(f.properties.basic?24:15)+'px;line-height:22px;text-align:center;color:'+(f.properties.basic?'#d73027':'#111')+';text-shadow:0 0 3px #fff,0 0 3px #fff">'+(f.properties.basic?'&#9733;':'&#9650;')+'</div>'})}).bindPopup('<b>'+f.properties.name+'</b><br>'+f.properties.kind+'<br>Pupils 2026: '+f.properties.students+'<br>'+f.properties.address)}).addTo(sch);
+const stTxt={no_osm_pair:'no OSM pair',no_etak_tag:'no maaamet:ETAK tag',etak_id_in_town_layer:'ETAK id is in the official town layer',etak_id_in_bbox_only:'ETAK id only outside the town',absent_from_official_data:'ETAK id is in no official building: possibly demolished, not verified'};
+const q2g={official:L.layerGroup(),osm:L.layerGroup(),absent:L.layerGroup()},cv=L.canvas({padding:.5});
+D.points.forEach(p=>{L.circleMarker([p[1],p[0]],{renderer:cv,radius:p[2]==='absent'?6:4.5,color:'#fff',weight:1,fillColor:QC[p[2]],fillOpacity:.95}).bindPopup('<b>'+(p[2]==='official'?'Official':'OSM')+' building '+p[5]+'</b><br>'+C.kinds[p[3]]+'<br>'+stTxt[p[4]]).addTo(q2g[p[2]])});
+function apply(sec){cur=state.mode[sec];sel=null;map.closePopup();restyle();
+map[sec==='schools'?'addLayer':'removeLayer'](sch);Object.keys(q2g).forEach(k=>map[sec==='q2'&&state.q2[k]?'addLayer':'removeLayer'](q2g[k]))}
+let fitted=false;function fit(){map.invalidateSize();if(!fitted){map.fitBounds(blocks.getBounds(),{padding:[4,4]});fitted=true}}
+fit();window.addEventListener('load',()=>{fitted=false;fit()});
+if(window.ResizeObserver)new ResizeObserver(()=>map.invalidateSize()).observe(document.getElementById('map'));
+// controls inside the sections
+const text=document.querySelector('.textcol');
+text.addEventListener('change',e=>{const t=e.target;
+if(t.name&&t.name.indexOf('mode-')===0){const sec=t.name.slice(5);state.mode[sec]=t.value;state.active=sec;apply(sec)}
+if(t.name==='morphchart')document.querySelectorAll('.morphchart').forEach(d=>d.hidden=d.dataset.k!==t.value);
+if(t.dataset&&t.dataset.q2){state.q2[t.dataset.q2]=t.checked;if(state.active==='q2')map[t.checked?'addLayer':'removeLayer'](q2g[t.dataset.q2])}});
+// link between the charts and the map
+document.addEventListener('mouseover',e=>{const c=e.target.closest&&e.target.closest('.chart .pt');if(c)hot(+c.dataset.id,true)});
+document.addEventListener('mouseout',e=>{const c=e.target.closest&&e.target.closest('.chart .pt');if(c)hot(+c.dataset.id,false)});
+document.addEventListener('focusin',e=>{const c=e.target.closest&&e.target.closest('.chart .pt');if(c)hot(+c.dataset.id,true)});
+document.addEventListener('focusout',e=>{const c=e.target.closest&&e.target.closest('.chart .pt');if(c)hot(+c.dataset.id,false)});
+document.addEventListener('click',e=>{const c=e.target.closest&&e.target.closest('.chart .pt');if(c)select(+c.dataset.id,true)});
+document.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.classList&&e.target.classList.contains('pt')){e.preventDefault();select(+e.target.dataset.id,true)}});
+// scroll: the section in the middle of the screen drives the map and the menu
+const links=[...document.querySelectorAll('nav.top a')];
+function mark(id){links.forEach(a=>a.classList.toggle('on',a.getAttribute('href')==='#'+id))}
+let io=null;
+function observe(){if(io)io.disconnect();const mob=window.matchMedia('(max-width:999px)').matches;
+io=new IntersectionObserver(es=>es.forEach(e=>{if(!e.isIntersecting)return;const id=e.target.id;mark(id);
+if(SECMODE[id]&&state.active!==id){state.active=id;apply(id)}}),{rootMargin:mob?'-56% 0px -30% 0px':'-40% 0px -50% 0px'});
+document.querySelectorAll('#overview,.textcol section,#details').forEach(s=>io.observe(s))}
+observe();window.matchMedia('(max-width:999px)').addEventListener('change',()=>{observe();fitted=false;setTimeout(fit,50)});
+apply('landuse');state.active='landuse';
+})();
+"""
+
+hero3 = f"""<header class="hero"><div class="wrap">
+<h1>Haapsalu urban blocks</h1>
+<p class="sub">A self-study GIS project: Haapsalu (Estonia) cut into urban blocks with BlocksNet and described by land use, population, density, walking accessibility and schools, plus a comparison of OpenStreetMap buildings with the official building data.</p>
+<div class="meta"><span>{esc(AUTHOR)}</span><span>October 2026</span><a class="btn" href="{REPO_URL}">Code on GitHub</a></div>
+</div></header>"""
+CSS3 += ('#details::before,.story::before{content:"";display:block;height:16px;background:url(' + LACE + ') repeat-x center;margin:0 0 26px}')
+page3 = f"""<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -712,42 +1006,44 @@ Leaflet 1.9.4, https://leafletjs.com (embedded below, unmodified)
 {leaflet_css}
 </style>
 <style>
-{CSS}
+{CSS2}
+{CSS3}
 </style>
 </head>
 <body>
-<div id="app">
-<header><h1>Haapsalu urban blocks <small class="by">{esc(AUTHOR_LINE)}<a href="{REPO_URL}">{REPO_URL}</a></small></h1><nav id="tabs" role="tablist" aria-label="Sections"></nav></header>
-<div id="map" aria-label="Map of the urban blocks"></div>
-<main id="panel" tabindex="-1"></main>
+{hero3}
+<nav class="top" aria-label="Sections"><div class="wrap">{nav_html}</div></nav>
+<section id="overview"><div class="wrap">
+<div class="cards top">{cards_html}</div>
+<h2>Key findings</h2>
+<ul class="kf">{''.join('<li>' + hl(x) + '</li>' for x in FINDINGS)}</ul>
+</div></section>
+<div class="story">
+<div class="mapcol"><div class="mapwrap"><div id="map" aria-label="Map of the urban blocks"></div><div class="maplegend" id="maplegend"></div></div></div>
+<div class="textcol">{story_html}</div>
 </div>
-<script id="data" type="application/json">{data_json}</script>
+<section id="details"><div class="wrap"><h2>Details</h2>
+{details_html}
+</div></section>
+<footer><div class="wrap">{esc(AUTHOR_LINE)}<a href="{REPO_URL}">{REPO_URL}</a></div></footer>
+<script id="data" type="application/json">{data2}</script>
 <script>
 {leaflet_js}
 </script>
 <script>
-{JS}
+{JS3}
 </script>
 </body>
 </html>
 """
-
-readme = ROOT / "README.md"
-r = readme.read_text(encoding="utf-8")
-a, z = "<!-- key-findings:start -->", "<!-- key-findings:end -->"
-assert r.count(a) == 1 and r.count(z) == 1
-block = a + "\n" + "\n".join(f"- {x}" for x in FINDINGS) + "\n" + z
-r = r[:r.index(a)] + block + r[r.index(z) + len(z):]
-readme.write_text(r, encoding="utf-8")
-
 out = ROOT / "dashboard.html"
-out.write_text(page, encoding="utf-8")
+out.write_text(page3, encoding="utf-8")
 docs = ROOT / "docs"
 docs.mkdir(exist_ok=True)
 shutil.copyfile(out, docs / "index.html")
 (docs / ".nojekyll").write_text("", encoding="utf-8")
 
-print(f"dashboard.html: {out.stat().st_size:,} bytes (data {len(data_json):,}, leaflet js+css {len(leaflet_js) + len(leaflet_css):,})")
+print(f"dashboard.html and docs/index.html: {out.stat().st_size:,} bytes (data {len(data2):,}, leaflet js+css {len(leaflet_js) + len(leaflet_css):,})")
 print(f"Checks: {n_ok} of {len(checks)} agree")
 w = max(len(c["name"]) for c in checks)
 for c in checks:
