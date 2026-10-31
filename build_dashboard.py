@@ -512,6 +512,7 @@ Publication listed by its authors: Churiakova T., Starikov V., Sudakova V., Moro
 territory development requirements</a>, ARTIIS 2023.</p>
 <p>Based on practice 2 of the ITMO University course &laquo;Технологии ИИ в урбанистике&raquo; (AI Technologies in
 Urban Studies).</p>
+<p>Licences: code under MIT; the terms of each data file are in <a href="{REPO_URL}/blob/main/data/LICENSE.md"><code>data/LICENSE.md</code></a> in the repository.</p>
 <p>Code written with the assistance of Claude Code (AI coding agent); research questions, data choices and decisions by the author.</p>
 """
 

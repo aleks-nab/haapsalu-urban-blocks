@@ -66,3 +66,10 @@ ARTIIS 2023.
   [open data portal](https://andmed.eesti.ee/datasets/eesti-hariduse-infosusteemi-avaandmed-oppeasutuste-hooned):
   school buildings, licence field `CC_BY_SA_3.0` in the portal record. Number of students per school: no licence
   is stated for the data on the pages checked (list of pages in [data/SOURCES.md](data/SOURCES.md)).
+
+## Licence
+
+- Code (`notebook.ipynb`, `build_dashboard.py`): [MIT](LICENSE). It does not apply to the data. `vendor/leaflet-1.9.4/` keeps its own licence file.
+- Data in `data/`: see [data/LICENSE.md](data/LICENSE.md) (terms of each source, per file).
+
+This is a self-study project; the licence notes are not a legal assessment.
