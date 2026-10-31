@@ -185,6 +185,62 @@ way into OSM.
   ("ÜP — maakasutuse juhtotstarve"), plan `planid` 1842001, updated 2024-11-13, covering 64.8 % of the town,
   licence CC BY 4.0 as stated by the service. It is **not downloaded**. A later comparison could set the
   legal purpose (cadastre), the planned purpose (general plan) and the mapped use (OSM) side by side.
+- **Walking accessibility: assumptions and limitations.**
+  - Walking speed **5 km/h (83.33 m/min)** is a conditional assumption: a generic average walking speed.
+    It is the default of IduEdu (`get_walk_graph`, `iduedu/modules/drive_walk_builder.py:181`), which states no
+    source for it in its code; it is not a national norm. IduEdu also uses a hardcoded 5 km/h for the
+    first and last segment from the block point to the nearest graph node (`matrix_builder.py:224`), which
+    does not follow a changed `walk_speed`.
+  - The 15 minutes for schools in the BlocksNet service table (Russian standards) are **not used**.
+  - **Block point.** BlocksNet takes the `representative_point` of each block as its origin and destination. For
+    the large blocks 2 and 172 this point can fall in a forest, so accessibility "from the block" is conditional
+    there.
+  - **Graph is frozen like the other data:** the graph is saved in `data/raw/`, its download date goes to
+    `data/download_dates.json`, and the osmnx cache is directed to `data/raw/osmnx_cache` (osmnx would otherwise
+    create a `cache` folder in the project).
+  - **Cycleways (checked on the cached OSM data of the town, nothing downloaded again).** The osmnx `walk`
+    filter used by IduEdu excludes `highway=cycleway`. In Haapsalu linn there are 72 such lines, 11.75 km:
+    `foot=designated` 28 lines (6.31 km), `foot=yes` 9 (3.60 km), no `foot` tag 35 (1.83 km), `foot=no` none. They are
+    7.1 % of the length of the walk network (about 165 km by the tags; approximation of the osmnx filter).
+    `get_walk_graph` has no parameter for a road filter (the filter is fixed in the code at line 218; only the drive
+    graph uses a `custom_filter`).
+  - **Decision: own walk graph with cycleways** (the 5 % of the walk network length was a conventional
+    guideline, not a rule). One download with `osmnx.graph_from_polygon` for the convex hull of the blocks, with the
+    osmnx `walk` filter in which `cycleway` is not excluded (`foot=no` is still excluded; there are no such
+    cycleways now). **Assumption: shared paths (cycleways) without a `foot` tag are walkable by pedestrians; this
+    was not checked against the OSM access rules for Estonia** (35 lines, 1.83 km, 15.6 % of the cycleway length).
+    The graph is built as in IduEdu `get_walk_graph` (EPSG:3301, `length_meter`, `time_min` at 5 km/h, only
+    the largest connected component, node `x`, `y`, graph `crs`), with every edge in both directions
+    (pedestrians ignore one-way rules; osmnx does this only for `network_type="walk"`). A second graph without
+    cycleways, from the same download, is only for comparison. The raw download is in
+    `data/raw/walk_graph_download.pickle` (date in `download_dates.json`, key `osm_walk_graph`), the osmnx
+    cache is `data/raw/osmnx_cache`; a rerun does not download again.
+  - **Deliberate difference from IduEdu: the shortest parallel edge.** IduEdu turns the multigraph into a simple
+    graph with `nx.DiGraph`, which keeps the **last** of the parallel edges of a pair of nodes, not the shortest
+    (in our graph that was wrong for 49 of 92 pairs). The own graph keeps the shortest edge (the lowest key if
+    equal): 98 parallel edges removed in the main graph, 93 in the comparison graph. The matrix is symmetric now.
+  - **Where the nodes go.** Main graph: 8 708 nodes in the raw download (not simplified), the same after both
+    directions are added; simplification removes 6 018 nodes that lie in the middle of a line (2 neighbours,
+    which is exactly the number of such raw nodes), leaving 2 690; the parallel edges change no node; keeping only
+    the largest connected component removes 46 (15 components before), leaving **2 644 nodes and 7 294 directed
+    edges**, 191 km of ways. Comparison graph (no cycleway): 8 353 nodes after the cycleway edges and the nodes left
+    without edges (355) are removed, 2 557 after simplification, 2 498 nodes and 6 681 edges after the largest
+    component (59 removed), 176 km.
+  - **Result.** Matrix `data/accessibility_matrix.parquet` (rows and columns `block_id`; column names are saved as
+    text), type **float16**, which is the default of IduEdu and is kept; it is saved as float16. The asymmetry is 0.
+    Comparison with the graph without cycleways over the 43 956 pairs of blocks: the median time saved is 0.00 min,
+    the 95th percentile 3.31 min, the maximum 19.4 min; 5 923 pairs (13.5 %) are faster by more than 2 min. 1 638
+    pairs (3.7 %) are slower with the cycleways: median 0.02 min, 95th percentile 0.88 min, maximum 3.04 min (21
+    pairs by more than 1 min). **All pairs slower by more than 0.1 min involve one of 8 blocks (32, 33, 35, 84, 86,
+    102, 147, 149) whose block point snaps to a different nearest node in the two graphs;** the nearest node as the
+    crow flies is not always the best entry to the network (example: block 33, 47 m to node 1180 in the main
+    graph, 57 m to node 1035 in the other, and from node 1180 the way to block 2 is 3.2 min longer). The rest of the
+    slower pairs are rounding noise of the `float16` matrix.
+    `blocks.geojson` has `median_accessibility` (median over all blocks of the row of the matrix, the block itself
+    with time 0 included): city median 19.6 min, range 13.4–56.0 min; large blocks 2 and 172: 24.0 and 19.7 min.
+    Map `data/accessibility_check.png`.
+  - **Checks.** No infinite, empty or negative values; the diagonal is 0. The block point is farther than 200 m
+    from the nearest graph node for 2 blocks: 3 (207 m) and 178 (202 m).
 - **Missing floors are a finding.** Report how many buildings lack floors in OSM, in EHR,
   and in both, and what default BlocksNet uses then (1 floor).
 - **School provision uses Estonian data, not the BlocksNet norms.** The BlocksNet norms
