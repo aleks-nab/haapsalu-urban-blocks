@@ -7,3 +7,6 @@ pandas==2.3.3
 shapely==2.2.0
 # Not imported directly: geopandas needs it for the raw OSM cache (to_parquet / read_parquet)
 pyarrow==19.0.1
+# Needed to run the notebook from the command line (jupyter nbconvert --execute)
+nbconvert==7.17.2
+ipykernel==7.4.0
