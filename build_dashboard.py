@@ -753,8 +753,10 @@ def hl(x):
     return re.sub(r"^(\d+)", r'<strong class="hl">\1</strong>', t) if t[:1].isdigit() else t
 
 
+HOC = '<span class="hov">Hover or click</span><span class="tap">Tap</span>'
 note3 = dict(note)
-note3["density"] = ("Colour the map by fsi, MXI or a BlocksNet morphotype. Hover or click a dot of the chart or a block of the map "
+note3["landuse"] = note["landuse"] + '<span class="tap"> Move the map with two fingers.</span>'
+note3["density"] = ("Colour the map by fsi, MXI or a BlocksNet morphotype. " + HOC + " a dot of the chart or a block of the map "
                     "to find it on both.")
 note3["population"] = note["population"]
 DEFAULT_MODE = {"landuse": "landuse", "population": "population", "density": "fsi", "access": "access", "schools": "time", "q2": "q2"}
@@ -767,7 +769,7 @@ def radios(name, items, checked):
 
 
 def sec3(sid, title, body):
-    return (f'<section id="{sid}"><h2>{esc(title)}</h2><p class="lead">{lead[sid]}</p>'
+    return (f'<section id="{sid}" data-card="{CARDS[sid]}"><h2>{esc(title)}</h2><p class="lead">{lead[sid]}</p>'
             f'<p class="note">{note3[sid]}</p>{body}</section>')
 
 
@@ -801,7 +803,7 @@ body3 = {
     "landuse": fig("Blocks by land-use class", bars_svg(lu_items2, aria="Blocks by land use"))
     + more("More on land use", table(['Class', 'Blocks', 'Population', 'Share of population', 'Area, km²'], lu_rows)),
     "population": fig("10 blocks with the most people", bars_svg(top_items, aria="Top 10 blocks by population"), None,
-                      "Distributed census population. Hover or click a bar to find the block on the map.")
+                      "Distributed census population. " + HOC + " a bar to find the block on the map.")
     + more("More on population", f"<p>The census total is distributed over the blocks by the registry net area of the dwellings. "
            f"For comparison, the same population estimated from floor area would be {num(popcheck['population_net'])} people "
            f"({popcheck['ratio_net_to_official']:.2f} times the census) from the registry net area and "
@@ -840,6 +842,28 @@ body3 = {
 }
 titles3 = {"landuse": "Land use", "population": "Population", "density": "Density", "access": "Accessibility",
            "schools": "Schools", "q2": "OSM vs official"}
+def card_attr(title, lead_txt, kpis):
+    return esc(json.dumps({"title": title, "lead": lead_txt, "kpi": kpis}, ensure_ascii=False))
+
+
+CARDS = {
+    "overview": card_attr("Haapsalu urban blocks", "Haapsalu (Estonia) cut into urban blocks and described by land use, population, density, "
+                          "walking access and schools.", [[num(N['pop_census']), "inhabitants, census 2021"], [num(N['blocks']), "urban blocks"]]),
+    "landuse": card_attr("Land use", lead["landuse"], [[f"{num(res_blocks)} of {num(N['blocks'])}", "blocks are residential"],
+                                                       [pct(non_res_pop), "of people in other classes"]]),
+    "population": card_attr("Population", lead["population"], [[num(dens.median(), 0), "people per hectare, median"],
+                                                                [pct(top10_share, 0), "live in the 10 largest blocks"]]),
+    "density": card_attr("Density", lead["density"], [[f"{emb.loc[emb['fsi'] > 0, 'fsi'].median():.2f}", "median fsi"],
+                                                      [f"{emb['l'].median():.1f}", "floors, median block"]]),
+    "access": card_attr("Accessibility", lead["access"], [[num(N['acc_med'], 1) + " min", "median walking time"],
+                                                          [num(N['acc_max'], 1) + " min", "most remote block"]]),
+    "schools": card_attr("Schools", lead["schools"], [[pct(walk[10]['share']), "of children within 10 min"],
+                                                      [pct(walk[15]['share']), "within 15 min"]]),
+    "q2": card_attr("OSM vs official", lead["q2"], [[num(N['off_un']), "official buildings without a pair"],
+                                                    [num(N['osm_un']), "OSM buildings without a pair"]]),
+    "details": card_attr("Details", "Methods and limitations, data sources and credits, summary statistics and the checks table.",
+                         [[f"{n_ok} of {len(checks)}", "checks agree"]]),
+}
 story_html = "".join(sec3(k, titles3[k], body3[k]) for k in ["landuse", "population", "density", "access", "schools", "q2"])
 
 CSS3 = """
@@ -854,6 +878,8 @@ border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:13px;
 .maplegend .bar{height:10px;max-width:260px;border:1px solid #6b7c8f;margin:3px 0}.maplegend .lr{display:flex;justify-content:space-between;max-width:260px}
 .maplegend .sw{display:inline-block;width:12px;height:12px;margin:0 5px 0 0;vertical-align:-2px;border:1px solid #6b7c8f}
 .maplegend .it{display:inline-block;margin:0 12px 2px 0}
+.lgbtn{display:none}
+.tap{display:none}
 .textcol section{padding:30px 0 24px;min-height:88vh;scroll-margin-top:60px}
 .textcol section:first-child{padding-top:30px}
 .textcol figure.chart{margin:14px 0}
@@ -870,13 +896,56 @@ details.more>summary{font-size:17px;padding:10px 14px}details.more>.body{padding
 .textcol{padding:0 28px 0 24px;min-width:0}
 }
 @media (max-width:999px){
-nav.top{position:static}
-.mapcol{position:sticky;top:0;z-index:1500;height:50vh;height:50dvh;padding:6px 12px;background:var(--bg)}
-.maplegend{font-size:12px;padding:6px 9px;max-height:46%;left:8px;bottom:8px}
-.maplegend .bar{max-width:200px}.maplegend .lr{max-width:200px}
-.textcol{padding:0 16px}
-.textcol section{min-height:60vh;scroll-margin-top:calc(50vh + 12px)}
+.hov{display:none}.tap{display:inline}
+body.app{position:fixed;inset:0;width:100%;overflow:hidden;font-size:16px}
+.app header.hero,.app nav.top,.app #overview,.app .textcol,.app #details,.app footer,.app .story::before{display:none}
+.app .insheet{display:block!important}
+.app .story{display:block}
+.app .mapcol{position:fixed;left:0;right:0;top:0;height:58vh;height:58dvh;padding:6px 8px 4px;background:var(--bg);z-index:1}
+.maplegend{left:8px;bottom:8px;max-width:calc(100% - 16px);max-height:80%;padding:0;background:none;border:0;box-shadow:none;font-size:11.5px;line-height:1.3}
+.lgbtn{display:inline-block;font:600 12px "Source Sans 3",system-ui,sans-serif;color:var(--fg);background:rgba(251,247,240,.96);border:1px solid var(--line);border-radius:999px;padding:3px 11px;box-shadow:var(--shadow);cursor:pointer}
+.maplegend:not(.open) .lgbody{display:none}
+.maplegend.open{background:rgba(251,247,240,.96);border:1px solid var(--line);border-radius:10px;padding:6px 8px;box-shadow:var(--shadow)}
+.maplegend.open .lgbtn{margin-bottom:4px}
+.maplegend .it{margin:0 8px 1px 0}.maplegend .bar{max-width:170px;height:8px}.maplegend .lr{max-width:170px}.maplegend .sw{width:10px;height:10px}
+.leaflet-control-attribution{font-size:9px!important;padding:0 4px!important}
+.leaflet-control-zoom a{width:28px;height:28px;line-height:28px}
+.hero h1{font-size:30px}
+h2{font-size:23px}
+.lead{font-size:21px;line-height:1.3}
+.note{font-size:14px}
+ul.kf{font-size:16px}
+.card b{font-size:24px}
+details>summary{font-size:18px}
 .cards.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+/* bottom strip of section cards */
+.appbar{position:fixed;left:0;right:0;top:58vh;top:58dvh;bottom:0;z-index:2;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom)}
+.strip{flex:1;min-height:0;display:flex;gap:10px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;padding:6px 7% 4px;scroll-padding:0 7%;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.strip::-webkit-scrollbar{display:none}
+.appcard{flex:0 0 86%;scroll-snap-align:center;scroll-snap-stop:always;display:flex;flex-direction:column;gap:6px;overflow-y:auto;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 14px 12px;box-shadow:var(--shadow)}
+.appcard .ct{font-family:Fraunces,Georgia,serif;font-weight:600;font-size:19px;line-height:1.2}
+.appcard .cl{margin:0;font-size:14.5px;line-height:1.32}
+.appcard .ck{display:flex;gap:8px}
+.appcard .kpi{flex:1;min-width:0;background:var(--bg);border-radius:10px;padding:5px 8px}
+.appcard .kpi b{display:block;font-family:Fraunces,Georgia,serif;font-size:19px;line-height:1.2;color:var(--acc);font-variant-numeric:lining-nums tabular-nums}
+.appcard .kpi span{font-size:12px;color:var(--mut);line-height:1.2;display:block}
+.appcard .modes3{margin:0;gap:0 12px;font-size:13px;line-height:1.35}
+.appcard .rm{margin-top:auto;position:sticky;bottom:0;flex:none;align-self:flex-start;font:600 14px "Source Sans 3",system-ui,sans-serif;color:#fff;background:var(--coral-dk);border:0;border-radius:999px;padding:7px 16px;cursor:pointer}
+.dots{display:flex;justify-content:center;gap:8px;padding:2px 0 8px}
+.dots button{position:relative;width:9px;height:9px;padding:0;border:0;border-radius:5px;background:#c9bda6;transition:width .15s}
+.dots button::after{content:"";position:absolute;inset:-9px -4px}
+.dots button.on{width:20px;background:var(--coral)}
+/* bottom sheet */
+#sheet{position:fixed;left:0;right:0;bottom:0;top:5vh;top:5dvh;z-index:3000;display:flex;flex-direction:column;background:var(--bg);border-radius:18px 18px 0 0;box-shadow:0 -6px 24px rgba(18,53,91,.28);transform:translateY(105%);visibility:hidden;transition:transform .26s ease,visibility 0s .26s}
+#sheet.open{transform:none;visibility:visible;transition:transform .26s ease,visibility 0s}
+.grab{position:relative;display:flex;align-items:center;gap:10px;padding:16px 14px 8px;border-bottom:1px solid var(--line);touch-action:none}
+.grab .handle{position:absolute;left:50%;top:6px;width:42px;height:4px;margin-left:-21px;border-radius:2px;background:#c9bda6}
+.grab .stitle{font-family:Fraunces,Georgia,serif;font-size:18px}
+.grab .sclose{margin-left:auto;font:600 14px "Source Sans 3",system-ui,sans-serif;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:999px;padding:5px 14px;cursor:pointer}
+.sbody{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:12px 16px 30px}
+.sbody section{min-height:0;padding:0 0 12px}
+.sbody .hero{padding:4px 0 26px}
+.sbody section[data-card]:not(#overview)>h2,.sbody #details>.wrap>h2{display:none}
 }
 """
 
@@ -922,12 +991,15 @@ leg:()=>cbar('Share of official buildings with an OSM pair',SEQ.rdylgn,'0.5 or l
 tip:p=>p.match_rate==null?'no official buildings':'match rate '+fmt.pct(p.match_rate)}};
 const SECMODE={landuse:'landuse',population:'population',density:'fsi',access:'access',schools:'time',q2:'q2'};
 const state={mode:Object.assign({},SECMODE),active:null,q2:{official:true,osm:true,absent:true}};
-let cur='landuse',sel=null,baseOn=true;
+let cur='landuse',sel=null,baseOn=true,closeSheet=function(){};
+const isMobile=window.matchMedia('(max-width:999px)').matches;
 const ALL=[['Land use','land_use_display','txt'],['People (distributed)','population_block','f1'],['People per hectare','pph','f1'],['fsi','fsi','f3'],['gsi','gsi','f3'],['L (mean floors)','l','f2'],['OSR','osr','osr'],['MXI','mxi','f2'],['Spacematrix','morphotype_spacematrix','txt'],['Strelka','morphotype_strelka','txt'],['Median walking time, min','median_accessibility','f1'],['Time to basic school, min','time_to_basic_school_min','f1'],['Children 7-15','children_7_15','int'],['Served within 10 / 15 / 20 min',null,null],['Official buildings','n_official_q2','int'],['Official without OSM pair','n_official_unmatched','int'],['OSM buildings','n_osm_q2','int'],['OSM without official pair','n_osm_unmatched','int'],['Match rate','match_rate','pct']];
 function popup(p){const rows=ALL.map(r=>{if(r[1]===null)return '<tr><td>'+r[0]+'</td><td style="text-align:right">'+[10,15,20].map(t=>{const v=p['provision_strong_'+t];return v==null?'-':(v>=1?'yes':'no')}).join(' / ')+'</td></tr>';
 return '<tr><td>'+r[0]+'</td><td style="text-align:right">'+fmt[r[2]](p[r[1]])+'</td></tr>'}).join('');
 return '<b>Block '+p.block_id+'</b>'+(p.large_block?' (large block)':'')+'<table>'+rows+'</table>'}
 const map=L.map('map',{preferCanvas:true,minZoom:8,maxZoom:19,zoomSnap:.25,scrollWheelZoom:true});
+const lg=document.getElementById('maplegend'),lgb=lg.querySelector('.lgbtn');
+lgb.addEventListener('click',()=>{const o=lg.classList.toggle('open');lgb.setAttribute('aria-expanded',o)});L.DomEvent.disableClickPropagation(lg);
 const tiles=L.tileLayer(C.tiles,{minZoom:8,maxNativeZoom:18,maxZoom:19,attribution:C.attribution}).addTo(map);
 const bm=L.control({position:'topright'});bm.onAdd=function(){const d=L.DomUtil.create('div','bm');
 d.innerHTML='<button type="button" class="bmb" aria-label="Basemap" aria-expanded="false" title="Basemap"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#12355B" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 12l9 5 9-5"/><path d="M3 16l9 5 9-5"/></svg></button><div class="bmp" hidden><b>Basemap</b><label><input type="radio" name="bm" value="on" checked> Grey map (Maa- ja Ruumiamet)</label><label><input type="radio" name="bm" value="off"> No basemap</label></div>';
@@ -945,7 +1017,7 @@ function layerStyle(id){const l=byId[id],p=l.feature.properties;return id===sel?
 function hot(id,on){const l=byId[id];if(!l)return;if(on){l.setStyle({color:'#E8604C',weight:3.6});l.bringToFront()}else l.setStyle(layerStyle(id));
 document.querySelectorAll('.pt[data-id="'+id+'"]').forEach(e=>e.classList.toggle('hot',on))}
 function restyle(){blocks.setStyle(f=>styleOf(f.properties));if(sel){byId[sel].setStyle(layerStyle(sel));byId[sel].bringToFront()}
-document.getElementById('maplegend').innerHTML=MODE[cur].leg()}
+document.getElementById('lgbody').innerHTML=MODE[cur].leg()}
 function select(id,zoom){sel=id;restyle();const l=byId[id];l.bindPopup(popup(l.feature.properties),{maxHeight:300,maxWidth:300}).openPopup(l.getBounds().getCenter());
 l.once('popupclose',()=>{if(sel===id){sel=null;l.setStyle(layerStyle(id))}});if(zoom)map.fitBounds(l.getBounds(),{maxZoom:16,padding:[50,50]})}
 const sch=L.layerGroup();L.geoJSON(D.schools,{pointToLayer:(f,ll)=>L.marker(ll,{icon:L.divIcon({className:'',iconSize:[22,22],iconAnchor:[11,11],
@@ -969,7 +1041,7 @@ document.addEventListener('mouseover',e=>{const c=e.target.closest&&e.target.clo
 document.addEventListener('mouseout',e=>{const c=e.target.closest&&e.target.closest('.chart .pt');if(c)hot(+c.dataset.id,false)});
 document.addEventListener('focusin',e=>{const c=e.target.closest&&e.target.closest('.chart .pt');if(c)hot(+c.dataset.id,true)});
 document.addEventListener('focusout',e=>{const c=e.target.closest&&e.target.closest('.chart .pt');if(c)hot(+c.dataset.id,false)});
-document.addEventListener('click',e=>{const c=e.target.closest&&e.target.closest('.chart .pt');if(c)select(+c.dataset.id,true)});
+document.addEventListener('click',e=>{const c=e.target.closest&&e.target.closest('.chart .pt');if(c){if(isMobile)closeSheet();select(+c.dataset.id,true)}});
 document.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.classList&&e.target.classList.contains('pt')){e.preventDefault();select(+e.target.dataset.id,true)}});
 // scroll: the section in the middle of the screen drives the map and the menu
 const links=[...document.querySelectorAll('nav.top a')];
@@ -977,9 +1049,42 @@ function mark(id){links.forEach(a=>a.classList.toggle('on',a.getAttribute('href'
 let io=null;
 function observe(){if(io)io.disconnect();const mob=window.matchMedia('(max-width:999px)').matches;
 io=new IntersectionObserver(es=>es.forEach(e=>{if(!e.isIntersecting)return;const id=e.target.id;mark(id);
-if(SECMODE[id]&&state.active!==id){state.active=id;apply(id)}}),{rootMargin:mob?'-56% 0px -30% 0px':'-40% 0px -50% 0px'});
+if(SECMODE[id]&&state.active!==id){state.active=id;apply(id)}}),{rootMargin:mob?'-46% 0px -40% 0px':'-40% 0px -50% 0px'});
 document.querySelectorAll('#overview,.textcol section,#details').forEach(s=>io.observe(s))}
-observe();window.matchMedia('(max-width:999px)').addEventListener('change',()=>{observe();fitted=false;setTimeout(fit,50)});
+window.matchMedia('(max-width:999px)').addEventListener('change',()=>location.reload());
+if(!isMobile)observe();
+// phone: map on top, strip of section cards at the bottom, bottom sheet with the rest
+function initApp(){
+const ids=['overview','landuse','population','density','access','schools','q2','details'];
+document.body.classList.add('app');
+const bar=document.createElement('div');bar.className='appbar';bar.innerHTML='<div class="strip" id="strip"></div><div class="dots" id="dots"></div>';document.body.appendChild(bar);
+const sheet=document.createElement('div');sheet.id='sheet';sheet.setAttribute('role','dialog');sheet.setAttribute('aria-label','More');
+sheet.innerHTML='<div class="grab"><span class="handle"></span><b class="stitle"></b><button type="button" class="sclose" aria-label="Close">Close</button></div><div class="sbody" id="sbody"></div>';document.body.appendChild(sheet);
+const st=bar.querySelector('#strip'),dots=bar.querySelector('#dots'),sb=sheet.querySelector('#sbody');
+ids.forEach((id,k)=>{const s=document.getElementById(id),d=JSON.parse(s.dataset.card),c=document.createElement('div');c.className='appcard';c.dataset.id=id;
+c.innerHTML='<div class="ct">'+d.title+'</div><p class="cl">'+d.lead+'</p><div class="ck">'+d.kpi.map(x=>'<div class="kpi"><b>'+x[0]+'</b><span>'+x[1]+'</span></div>').join('')+'</div><div class="cm"></div><button type="button" class="rm" data-open="'+id+'">Read more</button>';
+const m=s.querySelector('.modes3');if(m)c.querySelector('.cm').appendChild(m);else c.querySelector('.cm').remove();
+st.appendChild(c);const b=document.createElement('button');b.type='button';b.setAttribute('aria-label',d.title);b.dataset.k=k;dots.appendChild(b)});
+let curK=-1;
+function setCard(k){if(k===curK)return;curK=k;dots.querySelectorAll('button').forEach((b,i)=>b.classList.toggle('on',i===k));const id=ids[k];if(SECMODE[id]){state.active=id;apply(id)}}
+let t=null;st.addEventListener('scroll',()=>{clearTimeout(t);t=setTimeout(()=>{const mid=st.scrollLeft+st.clientWidth/2;let best=0,bd=1e9;[...st.children].forEach((c,i)=>{const d=Math.abs(c.offsetLeft+c.offsetWidth/2-mid);if(d<bd){bd=d;best=i}});setCard(best)},60)});
+dots.addEventListener('click',e=>{const b=e.target.closest('button');if(b)st.scrollTo({left:st.children[+b.dataset.k].offsetLeft-(st.clientWidth-st.children[+b.dataset.k].offsetWidth)/2,behavior:'smooth'})});
+setCard(0);
+let held=[],timer=null;
+function restore(){clearTimeout(timer);held.reverse().forEach(h=>{h[0].classList.remove('insheet');h[1].insertBefore(h[0],h[2])});held=[]}
+function openSheet(id){restore();const s=document.getElementById(id),nodes=id==='overview'?[document.querySelector('header.hero'),s]:[s];
+nodes.forEach(n=>{held.push([n,n.parentNode,n.nextSibling]);n.classList.add('insheet');sb.appendChild(n)});
+sheet.querySelector('.stitle').textContent=JSON.parse(s.dataset.card).title;sb.scrollTop=0;sheet.classList.add('open')}
+closeSheet=function(){if(!sheet.classList.contains('open'))return;sheet.classList.remove('open');timer=setTimeout(restore,300)};
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-open]');if(b)openSheet(b.dataset.open)});
+sheet.querySelector('.sclose').addEventListener('click',closeSheet);
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet()});
+let y0=null;
+sheet.addEventListener('touchstart',e=>{y0=(e.target.closest('.grab')||sb.scrollTop<=0)?e.touches[0].clientY:null},{passive:true});
+sheet.addEventListener('touchmove',e=>{if(y0==null)return;const dy=e.touches[0].clientY-y0;if(dy>0){sheet.style.transition='none';sheet.style.transform='translateY('+dy+'px)'}},{passive:true});
+sheet.addEventListener('touchend',e=>{if(y0==null)return;const dy=e.changedTouches[0].clientY-y0;sheet.style.transition='';sheet.style.transform='';y0=null;if(dy>90)closeSheet()});
+setTimeout(()=>{fitted=false;fit()},50)}
+if(isMobile)initApp();
 apply('landuse');state.active='landuse';
 })();
 """
@@ -1013,16 +1118,16 @@ Leaflet 1.9.4, https://leafletjs.com (embedded below, unmodified)
 <body>
 {hero3}
 <nav class="top" aria-label="Sections"><div class="wrap">{nav_html}</div></nav>
-<section id="overview"><div class="wrap">
+<section id="overview" data-card="{CARDS['overview']}"><div class="wrap">
 <div class="cards top">{cards_html}</div>
 <h2>Key findings</h2>
 <ul class="kf">{''.join('<li>' + hl(x) + '</li>' for x in FINDINGS)}</ul>
 </div></section>
 <div class="story">
-<div class="mapcol"><div class="mapwrap"><div id="map" aria-label="Map of the urban blocks"></div><div class="maplegend" id="maplegend"></div></div></div>
+<div class="mapcol"><div class="mapwrap"><div id="map" aria-label="Map of the urban blocks"></div><div class="maplegend" id="maplegend"><button type="button" class="lgbtn" aria-expanded="false">Legend</button><div class="lgbody" id="lgbody"></div></div></div></div>
 <div class="textcol">{story_html}</div>
 </div>
-<section id="details"><div class="wrap"><h2>Details</h2>
+<section id="details" data-card="{CARDS['details']}"><div class="wrap"><h2>Details</h2>
 {details_html}
 </div></section>
 <footer><div class="wrap">{esc(AUTHOR_LINE)}<a href="{REPO_URL}">{REPO_URL}</a></div></footer>
