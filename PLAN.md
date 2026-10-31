@@ -119,14 +119,33 @@ way into OSM.
     outbuilding, not housing.
   - Result: 1 757 dwelling buildings (1 521 with a single dwelling use, 236 mixed or with a
     cut text), all with floors from the registry.
-- **First population check for the whole town** (no fitting, only a check; per-block method
-  is chosen later; `data/population_check_city.json`): with 29.9 m² per person, the sum of
-  `footprint_m2 × floors` of the dwellings (723 250 m²) gives 24 189 people, 2.52 times the
-  official 9 595; the sum of the registry `suletud_netopind` (495 762 m²) gives 16 581 people,
-  1.73 times. Both are expected to be too high: footprint × floors is a gross area, the 29.9 m²
-  is a usable area per person from occupied dwellings, and the building areas include vacant
-  dwellings (census: 91 362 m² of 377 891 m² of dwelling area in Haapsalu linn is vacant),
-  common areas and the non-dwelling parts of mixed buildings.
+  - **How much the mixed rule matters** (236 dwellings that are mixed or have a cut text,
+    45.9 % of the dwelling net floor area, 227 707 m²): (a) 42 buildings are a single dwelling
+    use after the cut tail is restored, 111 048 m²; (b) 129 buildings are dwelling plus only
+    `Elamu, kooli vms abihoone`, 83 134 m²; (c) 56 buildings are dwelling plus another non-dwelling
+    use (shop, office, cafe, hotel), 31 998 m²; (d) 9 buildings combine several dwelling uses,
+    1 527 m². Only group (c) really mixes housing with something else (6.5 % of the area).
+- **Population per block (dasymetric distribution, not a fit).** The population of the town is
+  taken from the census: 9 595 (RL21003, census 2021). It is only distributed over the blocks:
+  `population_block = 9 595 × (sum of suletud_netopind of the dwellings in the block) / (sum of
+  suletud_netopind of all dwellings of the town)`. The sum over the blocks is 9 595. 29.9 m² per
+  person is not changed or used here. A dwelling is assigned to the block that contains its
+  inside point. One dwelling has an empty `suletud_netopind` (`etak_id` 205592, `ehr_gid`
+  105002892, detached house, 114 m² footprint, 2 registry floors); it is not filled, so it adds
+  nothing to its block. The columns `n_dwellings`, `dwelling_net_area_m2` and `population_block`
+  are in `blocks.geojson`.
+- **Finding for the README: building-only estimate overestimates the population** (check with
+  29.9 m² per person, `data/population_check_city.json`; no fitting): the sum of `footprint_m2 ×
+  floors` of the dwellings (723 250 m²) gives 24 189 people, 2.52 times the official 9 595; the
+  sum of the registry `suletud_netopind` (495 762 m²) gives 16 581 people, 1.73 times. A known
+  reason: 24 % of the dwelling floor area is vacant (RL21218: 91 362 of 377 891 m² in Haapsalu
+  linn); alone this explains a factor of about 1.32. The rest is not separated; candidates are
+  common areas and the non-dwelling parts of mixed buildings. The 29.9 m² is a usable area per
+  person from occupied dwellings, while footprint × floors is a gross area.
+- **Finding: footprint and register building area.** The median of `footprint_m2 /
+  ehitisalune_pind` for the dwellings is 1.19 (1 749 dwellings with a positive
+  `ehitisalune_pind`). The reason is not established. An assumption, not checked: the
+  geometry is the outline of the roof and the register area is measured at the walls.
 - **Missing floors are a finding.** Report how many buildings lack floors in OSM, in EHR,
   and in both, and what default BlocksNet uses then (1 floor).
 - **School provision uses Estonian data, not the BlocksNet norms.** The BlocksNet norms
