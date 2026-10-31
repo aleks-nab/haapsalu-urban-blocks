@@ -50,6 +50,8 @@ Publication listed by the BlocksNet authors: Churiakova T., Starikov V., Sudakov
 [Digital Master Plan as a tool for generating territory development requirements](https://link.springer.com/chapter/10.1007/978-3-031-48855-9_4).
 ARTIIS 2023.
 
+**Method.** Density indicators (fsi, gsi, L, OSR) and morphotypes follow the Spacematrix method: Berghauser Pont, M. & Haupt, P. (2010). *Spacematrix: Space, Density and Urban Form*. Rotterdam: NAi Publishers.
+
 **Course.** Based on practice 2 of the ITMO University course «Технологии ИИ в урбанистике»
 (AI Technologies in Urban Studies).
 
