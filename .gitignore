@@ -33,3 +33,5 @@ Thumbs.db
 
 # Local app folder
 .claude/
+
+.playwright-browsers/

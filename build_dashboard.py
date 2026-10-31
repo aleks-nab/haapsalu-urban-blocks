@@ -925,22 +925,20 @@ details>summary{font-size:18px}
 .strip{position:relative;flex:1;min-width:0;display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;padding:6px 0 4px}
 .strip::-webkit-scrollbar{display:none}
 .strip::before,.strip::after{content:"";flex:0 0 calc(6% - 6px)}
-.appcard{flex:0 0 88%;margin:0 6px;scroll-snap-align:center;display:flex;flex-direction:column;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 14px 12px;box-shadow:var(--shadow)}
-.navbtn{position:absolute;top:50%;margin-top:-24px;width:24px;height:48px;padding:0;border:1px solid var(--line);border-radius:12px;background:rgba(251,247,240,.94);color:var(--fg);font:700 20px/1 sans-serif;z-index:2;cursor:pointer}
-.navbtn.prev{left:1px}.navbtn.next{right:1px}.navbtn[disabled]{opacity:.25}
+.appcard{flex:0 0 88%;margin:0 6px;scroll-snap-align:center;display:flex;flex-direction:column;gap:6px;overflow-y:auto;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 14px 12px;box-shadow:var(--shadow)}
 .appcard .ct{font-family:Fraunces,Georgia,serif;font-weight:600;font-size:18px;line-height:1.2}
-.appcard .cl{margin:0;font-size:14px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
+.appcard>*{flex:none}
+.appcard .cl{margin:0;font-size:14px;line-height:1.3}
 .appcard .ck{display:flex;gap:8px}
 .appcard .kpi{flex:1;min-width:0;background:var(--bg);border-radius:10px;padding:5px 8px}
 .appcard .kpi b{display:block;font-family:Fraunces,Georgia,serif;font-size:18px;line-height:1.2;color:var(--acc);font-variant-numeric:lining-nums tabular-nums}
 .appcard .kpi span{font-size:12px;color:var(--mut);line-height:1.2;display:block}
 .appcard .modes3{margin:0;gap:0 12px;font-size:13px;line-height:1.35}
-.appcard .rm{margin-top:auto;position:sticky;bottom:0;flex:none;align-self:flex-start;font:600 14px "Source Sans 3",system-ui,sans-serif;color:#fff;background:var(--coral-dk);border:0;border-radius:999px;padding:7px 16px;cursor:pointer}
+.appcard .rm{margin-top:auto;align-self:flex-start;font:600 14px "Source Sans 3",system-ui,sans-serif;color:#fff;background:var(--coral-dk);border:0;border-radius:999px;padding:7px 16px;cursor:pointer}
 .dots{display:flex;justify-content:center;gap:8px;padding:2px 0 8px}
 .dots button{position:relative;width:9px;height:9px;padding:0;border:0;border-radius:5px;background:#c9bda6;transition:width .15s}
 .dots button::after{content:"";position:absolute;inset:-9px -4px}
 .dots button.on{width:20px;background:var(--coral)}
-@media (max-height:700px){.appcard .ck{display:none}.appcard .cl{-webkit-line-clamp:3}}
 /* bottom sheet */
 #sheet{position:fixed;left:0;right:0;bottom:0;top:5vh;top:5dvh;z-index:3000;display:none;flex-direction:column;background:var(--bg);border-radius:18px 18px 0 0;box-shadow:0 -6px 24px rgba(18,53,91,.28);transform:translateY(105%);transition:transform .26s ease}
 #sheet.vis{display:flex}
@@ -1038,10 +1036,13 @@ let fitted=false;function fit(){map.invalidateSize();if(!fitted){map.fitBounds(b
 fit();window.addEventListener('load',()=>{fitted=false;fit()});
 if(window.ResizeObserver)new ResizeObserver(()=>map.invalidateSize()).observe(document.getElementById('map'));
 // controls inside the sections
-const text=document.querySelector('.textcol');
-text.addEventListener('change',e=>{const t=e.target;
-if(t.name&&t.name.indexOf('mode-')===0){const sec=t.name.slice(5);state.mode[sec]=t.value;state.active=sec;apply(sec)}
-if(t.name==='morphchart')document.querySelectorAll('.morphchart').forEach(d=>d.hidden=d.dataset.k!==t.value);
+function syncMorph(k){const r=document.querySelector('input[name="morphchart"][value="'+k+'"]');if(r)r.checked=true;
+document.querySelectorAll('.morphchart').forEach(d=>d.hidden=d.dataset.k!==k)}
+document.addEventListener('change',e=>{const t=e.target;
+if(t.name&&t.name.indexOf('mode-')===0){const sec=t.name.slice(5);state.mode[sec]=t.value;state.active=sec;apply(sec);
+if(sec==='density'&&(t.value==='spacematrix'||t.value==='strelka'))syncMorph(t.value==='spacematrix'?'sm':'st')}
+if(t.name==='morphchart'){syncMorph(t.value);const v=t.value==='sm'?'spacematrix':'strelka';state.mode.density=v;
+const r=document.querySelector('input[name="mode-density"][value="'+v+'"]');if(r)r.checked=true;state.active='density';apply('density')}
 if(t.dataset&&t.dataset.q2){state.q2[t.dataset.q2]=t.checked;if(state.active==='q2')map[t.checked?'addLayer':'removeLayer'](q2g[t.dataset.q2])}});
 // link between the charts and the map
 document.addEventListener('mouseover',e=>{const c=e.target.closest&&e.target.closest('.chart .pt');if(c)hot(+c.dataset.id,true)});
@@ -1064,7 +1065,7 @@ if(!isMobile)observe();
 function initApp(){
 const ids=['overview','landuse','population','density','access','schools','q2','details'];
 document.body.classList.add('app');document.documentElement.classList.add('app');
-const bar=document.createElement('div');bar.className='appbar';bar.innerHTML='<div class="stripwrap"><div class="strip" id="strip"></div><button type="button" class="navbtn prev" aria-label="Previous card">&#8249;</button><button type="button" class="navbtn next" aria-label="Next card">&#8250;</button></div><div class="dots" id="dots"></div>';document.body.appendChild(bar);
+const bar=document.createElement('div');bar.className='appbar';bar.innerHTML='<div class="stripwrap"><div class="strip" id="strip"></div></div><div class="dots" id="dots"></div>';document.body.appendChild(bar);
 const sheet=document.createElement('div');sheet.id='sheet';sheet.setAttribute('role','dialog');sheet.setAttribute('aria-label','More');
 sheet.innerHTML='<div class="grab"><span class="handle"></span><b class="stitle"></b><button type="button" class="sclose" aria-label="Close">Close</button></div><div class="sbody" id="sbody"></div>';document.body.appendChild(sheet);
 const st=bar.querySelector('#strip'),dots=bar.querySelector('#dots'),sb=sheet.querySelector('#sbody');
@@ -1072,12 +1073,11 @@ ids.forEach((id,k)=>{const s=document.getElementById(id),d=JSON.parse(s.dataset.
 c.innerHTML='<div class="ct">'+d.title+'</div><p class="cl">'+d.lead+'</p><div class="ck">'+d.kpi.map(x=>'<div class="kpi"><b>'+x[0]+'</b><span>'+x[1]+'</span></div>').join('')+'</div><div class="cm"></div><button type="button" class="rm" data-open="'+id+'">Read more</button>';
 const m=s.querySelector('.modes3');if(m)c.querySelector('.cm').appendChild(m);else c.querySelector('.cm').remove();
 st.appendChild(c);const b=document.createElement('button');b.type='button';b.setAttribute('aria-label',d.title);b.dataset.k=k;dots.appendChild(b)});
-let curK=-1;const prev=bar.querySelector('.prev'),next=bar.querySelector('.next');
-function setCard(k){prev.disabled=k===0;next.disabled=k===ids.length-1;if(k===curK)return;curK=k;dots.querySelectorAll('button').forEach((b,i)=>b.classList.toggle('on',i===k));const id=ids[k];if(SECMODE[id]){state.active=id;apply(id)}}
+let curK=-1;
+function setCard(k){if(k===curK)return;curK=k;dots.querySelectorAll('button').forEach((b,i)=>b.classList.toggle('on',i===k));const id=ids[k];if(SECMODE[id]){state.active=id;apply(id)}}
 function go(k){k=Math.max(0,Math.min(ids.length-1,k));const c=st.children[k],left=c.offsetLeft-(st.clientWidth-c.offsetWidth)/2;try{st.scrollTo({left:left,behavior:'smooth'})}catch(e){st.scrollLeft=left}}
 let t=null;st.addEventListener('scroll',()=>{clearTimeout(t);t=setTimeout(()=>{const mid=st.scrollLeft+st.clientWidth/2;let best=0,bd=1e9;[...st.children].forEach((c,i)=>{const d=Math.abs(c.offsetLeft+c.offsetWidth/2-mid);if(d<bd){bd=d;best=i}});setCard(best)},50)},{passive:true});
 dots.addEventListener('click',e=>{const b=e.target.closest('button');if(b)go(+b.dataset.k)});
-prev.addEventListener('click',()=>go(curK-1));next.addEventListener('click',()=>go(curK+1));
 setCard(0);
 let held=[],timer=null;
 function restore(){clearTimeout(timer);held.reverse().forEach(h=>{h[0].classList.remove('insheet');h[1].insertBefore(h[0],h[2])});held=[]}
