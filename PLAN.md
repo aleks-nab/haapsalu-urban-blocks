@@ -146,6 +146,16 @@ way into OSM.
   ehitisalune_pind` for the dwellings is 1.19 (1 749 dwellings with a positive
   `ehitisalune_pind`). The reason is not established. An assumption, not checked: the
   geometry is the outline of the roof and the register area is measured at the walls.
+- **Density indicators of the blocks** (`gsi`, `fsi`, `l`, `osr`, `share_floors_estimated`, columns of
+  `blocks.geojson`) come from `blocksnet.analysis.indicators.calculate_density_indicators` and use
+  all official buildings, with floors of all sources. They equal the plain formulas
+  (`fsi` = sum of footprint × floors / area, `gsi` = sum of footprint / area, `l` = `fsi / gsi`,
+  `osr` = (1 − `gsi`) / `fsi`); BlocksNet only adds clips that never apply here (`gsi` to 0–1, `l`
+  not below 1) and gives NaN or infinity where there are no buildings, which we leave empty (81
+  blocks). Buildings belong to the block that contains their inside point, footprints are not cut.
+- **Blocks with OSM buildings only** (`built_up = True` but `gsi = 0`, one OSM building each, no
+  official building): block_id 11, 29, 62, 86, 144, 293. They go into the Q2 comparison (OSM
+  buildings without an official pair).
 - **Missing floors are a finding.** Report how many buildings lack floors in OSM, in EHR,
   and in both, and what default BlocksNet uses then (1 floor).
 - **School provision uses Estonian data, not the BlocksNet norms.** The BlocksNet norms
@@ -200,7 +210,7 @@ way into OSM.
 4. **Blocks.** Build city blocks with BlocksNet (roads incl. `highway=service`, and water; no railway). Drop islands and slivers without buildings (separate files); mark undeveloped blocks (`built_up`) and large blocks (`large_block`). **Stop and check the blocks on a map** before any metrics.
 5. **Metrics.** Land use shares, density, Spacematrix, population estimate (official census 2021 living area per person; one comparison with the official population as a check), schools (EHIS capacity, children aged 7–18; BlocksNet norm only as a stated fallback), walking accessibility, as in BlocksNet `examples/pipeline.ipynb`.
 6. **Building comparison (Q2).** Match OSM and official buildings, count missing ones, compare floors, count buildings without floors in OSM / EHR / both; recompute population and density with official floors; compare with the EHR net floor area estimate.
-7. **Dashboard.** One `dashboard.html`: map of blocks, charts and tables, plus a page section for the OSM vs official comparison.
+7. **Dashboard.** One `dashboard.html`: map of blocks, charts and tables, plus a page section for the OSM vs official comparison. Show `osr` with the colour scale clipped at the 95th percentile (the maximum is 13 715 because of a block with one building).
 8. **Checks.** A table "metric — notebook — dashboard" to prove the numbers match; a re-run instruction.
 9. **Publish.** GitHub repository with README, plan, notebook, GeoJSON, script, dashboard; a short LinkedIn post.
 
