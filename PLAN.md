@@ -202,6 +202,12 @@ way into OSM.
   area and also a thin strip along the shore, because the street network does not separate
   them. The strip is left as it is; the block is covered by `large_block = True`.
 
+**Open question: licence of the published data.** Share-alike terms apply to some inputs: OSM (ODbL 1.0)
+and Statistics Estonia (CC BY-SA 4.0), and school buildings from EHIS are marked CC BY-SA 3.0. Derived layers in
+the repository (for example `blocks.geojson`, which uses OSM roads and water, and `population_block`, which
+uses the census total) may have to be shared under compatible terms. To be decided, and the licence of the
+repository chosen, before publishing (step 9).
+
 ## Steps
 
 1. **Set-up.** Project folder, Python 3.12 environment, BlocksNet, empty GitHub repository.

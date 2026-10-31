@@ -15,4 +15,35 @@ See [PLAN.md](PLAN.md) for the research questions, data sources and steps.
 
 ## Data sources and licences
 
-To be filled in as data is downloaded (source, download date, licence).
+See [Acknowledgements and credits](#acknowledgements-and-credits) below and
+[data/SOURCES.md](data/SOURCES.md) (source, URL, licence, download date and number of features of every layer).
+
+## Acknowledgements and credits
+
+**BlocksNet.** City blocks are cut with [BlocksNet](https://github.com/aimclub/blocksnet)
+(version 1.0.0a9, [PyPI](https://pypi.org/project/blocksnet/)), developed by the Institute of Design and
+Urban Studies (IDU), ITMO University. BlocksNet is released under the BSD-3-Clause licence.
+BlocksNet is installed as a dependency via pip; no BlocksNet source code is copied into this repository.
+Publication listed by the BlocksNet authors: Churiakova T., Starikov V., Sudakova V., Morozov A., Mityagin S.
+[Digital Master Plan as a tool for generating territory development requirements](https://link.springer.com/chapter/10.1007/978-3-031-48855-9_4).
+ARTIIS 2023.
+
+**Course.** Based on practice 2 of the ITMO University course «Технологии ИИ в урбанистике»
+(AI Technologies in Urban Studies).
+
+**Data.** Details, URLs, licences and download dates are in [data/SOURCES.md](data/SOURCES.md).
+
+- OpenStreetMap: roads, water, land use, buildings and schools, © OpenStreetMap contributors, licensed under the
+  [ODbL](https://www.openstreetmap.org/copyright).
+- Republic of Estonia Land and Spatial Development Board (Maa- ja Ruumiamet): settlement boundary (EHAK) and
+  ETAK buildings with Building Register data, under the
+  [Maa- ja Ruumiamet opendata licence](https://geoportaal.maaruum.ee/opendata-licence) of 01.01.2025.
+  Reference required by the licence: *ETAK buildings with EHR data and EHAK settlement boundary: Republic of
+  Estonia Land and Spatial Development Board, extract 30.10.2026.*
+- Statistics Estonia: population and housing census 2021 (tables RL21003, RL21218 and RL21807). The database
+  states: "Statistics Estonia’s open data can be shared under Creative Commons (CC) licence BY-SA 4.0"
+  ([CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/deed.en)).
+- Estonian Education Information System (EHIS) open data, from the
+  [open data portal](https://andmed.eesti.ee/datasets/eesti-hariduse-infosusteemi-avaandmed-oppeasutuste-hooned):
+  school buildings, licence field `CC_BY_SA_3.0` in the portal record. Number of students per school: no licence
+  is stated for the data on the pages checked (list of pages in [data/SOURCES.md](data/SOURCES.md)).
