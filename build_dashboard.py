@@ -940,10 +940,10 @@ details>summary{font-size:18px}
 /* bottom strip of section cards */
 .appbar{position:fixed;left:0;right:0;top:56vh;top:56dvh;bottom:0;z-index:2;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom)}
 .stripwrap{position:relative;flex:1;min-height:0;display:flex}
-.strip{position:relative;flex:1;min-width:0;display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;padding:6px 0 4px}
+.strip{position:relative;flex:1;min-width:0;display:flex;align-items:flex-start;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;padding:6px 0 4px}
 .strip::-webkit-scrollbar{display:none}
 .strip::before,.strip::after{content:"";flex:0 0 calc(6% - 6px)}
-.appcard{flex:0 0 88%;margin:0 6px;scroll-snap-align:center;display:flex;flex-direction:column;gap:6px;overflow-y:auto;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 14px 12px;box-shadow:var(--shadow)}
+.appcard{flex:0 0 88%;max-height:100%;margin:0 6px;scroll-snap-align:center;display:flex;flex-direction:column;gap:6px;overflow-y:auto;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 14px 12px;box-shadow:var(--shadow)}
 .appcard .ct{font-family:Fraunces,Georgia,serif;font-weight:600;font-size:18px;line-height:1.2}
 .appcard>*{flex:none}
 .appcard .cl{margin:0;font-size:14px;line-height:1.3}
@@ -952,7 +952,7 @@ details>summary{font-size:18px}
 .appcard .kpi b{display:block;font-family:Fraunces,Georgia,serif;font-size:18px;line-height:1.2;color:var(--acc);font-variant-numeric:lining-nums tabular-nums}
 .appcard .kpi span{font-size:12px;color:var(--mut);line-height:1.2;display:block}
 .appcard .modes3{margin:0;gap:0 12px;font-size:13px;line-height:1.35}
-.appcard .rm{margin-top:auto;align-self:flex-start;font:600 14px "Source Sans 3",system-ui,sans-serif;color:#fff;background:var(--coral-dk);border:0;border-radius:999px;padding:7px 16px;cursor:pointer}
+.appcard .rm{margin-top:4px;align-self:flex-start;font:600 14px "Source Sans 3",system-ui,sans-serif;color:#fff;background:var(--coral-dk);border:0;border-radius:999px;padding:7px 16px;cursor:pointer}
 .dots{display:flex;justify-content:center;gap:8px;padding:2px 0 8px}
 .dots button{position:relative;width:9px;height:9px;padding:0;border:0;border-radius:5px;background:#c9bda6;transition:width .15s}
 .dots button::after{content:"";position:absolute;inset:-9px -4px}
@@ -1041,7 +1041,7 @@ function hot(id,on){const l=byId[id];if(!l)return;if(on){l.setStyle({color:'#E86
 document.querySelectorAll('.pt[data-id="'+id+'"]').forEach(e=>e.classList.toggle('hot',on))}
 function restyle(){blocks.setStyle(f=>styleOf(f.properties));if(sel){byId[sel].setStyle(layerStyle(sel));byId[sel].bringToFront()}
 document.getElementById('lgbody').innerHTML=MODE[cur].leg()}
-function select(id,zoom){sel=id;restyle();const l=byId[id];l.bindPopup(popup(l.feature.properties),{maxHeight:isMobile?Math.round(document.getElementById('map').clientHeight*0.45)-24:300,maxWidth:isMobile?230:300,autoPanPaddingTopLeft:isMobile?[8,52]:[5,5]}).openPopup(l.getBounds().getCenter());
+function select(id,zoom){sel=id;restyle();const l=byId[id];l.bindPopup(popup(l.feature.properties),{maxHeight:isMobile?Math.round(document.getElementById('map').clientHeight*0.45)-24:300,maxWidth:isMobile?230:300,autoPanPaddingTopLeft:isMobile?[8,66]:[5,5],keepInView:true}).openPopup(l.getBounds().getCenter());
 l.once('popupclose',()=>{if(sel===id){sel=null;l.setStyle(layerStyle(id))}});if(zoom)map.fitBounds(l.getBounds(),{maxZoom:16,padding:[50,50]})}
 const sch=L.layerGroup();L.geoJSON(D.schools,{pointToLayer:(f,ll)=>L.marker(ll,{icon:L.divIcon({className:'',iconSize:[22,22],iconAnchor:[11,11],
 html:'<div style="font-size:'+(f.properties.basic?24:15)+'px;line-height:22px;text-align:center;color:'+(f.properties.basic?'#d73027':'#111')+';text-shadow:0 0 3px #fff,0 0 3px #fff">'+(f.properties.basic?'&#9733;':'&#9650;')+'</div>'})}).bindPopup('<b>'+f.properties.name+'</b><br>'+f.properties.kind+'<br>Pupils 2026: '+f.properties.students+'<br>'+f.properties.address)}).addTo(sch);
@@ -1161,7 +1161,7 @@ Leaflet 1.9.4, https://leafletjs.com (embedded below, unmodified)
 <section id="details" data-card="{CARDS['details']}"><div class="wrap"><h2>Details</h2>
 {details_html}
 </div></section>
-<footer><div class="wrap">{esc(AUTHOR_LINE)}<a href="{REPO_URL}">{REPO_URL}</a></div></footer>
+<footer><div class="wrap">{esc(AUTHOR)} · self-study project · October 2026</div></footer>
 <script id="data" type="application/json">{data2}</script>
 <script>
 {leaflet_js}

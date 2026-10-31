@@ -13,7 +13,7 @@ density, accessibility, schools, OSM vs official). Overview and key findings:
 https://aleks-nab.github.io/haapsalu-urban-blocks/#overview. The page is the file [dashboard.html](dashboard.html)
 (copy in `docs/`), built by `build_dashboard.py`; the basemap needs the internet.
 
-On phones: a map-app layout — the map stays on top, swipe the section cards below, 'Read more' opens the details.
+On phones: a cover page with key findings, then a map-app view — the map stays on top, swipe the section cards, 'Read more' opens the details.
 
 ## Key findings
 
