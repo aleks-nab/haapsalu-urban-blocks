@@ -1,10 +1,12 @@
 # Haapsalu urban blocks
 
+Live dashboard: https://aleks-nab.github.io/haapsalu-urban-blocks/
+
 Self-study GIS project: city blocks and block metrics for Haapsalu, Estonia, built with
 [BlocksNet](https://github.com/aimclub/blocksnet), plus a comparison of OpenStreetMap
 buildings with official Estonian building data (footprints and number of floors).
 
-Status: metrics and dashboard done, not published yet.
+Status: metrics and dashboard done, published on GitHub Pages.
 
 Dashboard: [dashboard.html](dashboard.html) (one file; open it in a browser; the basemap needs the internet).
 Overview and key findings: [dashboard.html#overview](dashboard.html#overview).

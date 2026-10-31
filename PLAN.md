@@ -345,6 +345,7 @@ and Statistics Estonia (CC BY-SA 4.0), and school buildings from EHIS are marked
 the repository (for example `blocks.geojson`, which uses OSM roads and water, and `population_block`, which
 uses the census total) may have to be shared under compatible terms. To be decided, and the licence of the
 repository chosen, before publishing (step 9).
+**Status 2026-10-31:** published without deciding it; `data/LICENSE.md` lists the terms per file and its section "Not verified" keeps the question open.
 
 ## Steps
 
@@ -357,6 +358,7 @@ repository chosen, before publishing (step 9).
 7. **Dashboard.** One `dashboard.html`: map of blocks, charts and tables, plus a page section for the OSM vs official comparison. Show `osr` with the colour scale clipped at the 95th percentile (the maximum is 13 715 because of a block with one building).
 8. **Checks.** A table "metric — notebook — dashboard" to prove the numbers match; a re-run instruction.
 9. **Publish.** GitHub repository with README, plan, notebook, GeoJSON, script, dashboard; a short LinkedIn post.
+   **Done 2026-10-31:** repository public, dashboard published on GitHub Pages (https://aleks-nab.github.io/haapsalu-urban-blocks/); MIT for the code, terms per data file in `data/LICENSE.md`. The LinkedIn post is not done.
 
 ## Outputs
 
