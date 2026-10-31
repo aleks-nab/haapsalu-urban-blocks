@@ -245,6 +245,45 @@ way into OSM.
     which gives differences of up to 3 min between the two graphs for the pairs that involve these blocks.
   - **Checks.** No infinite, empty or negative values; the diagonal is 0. The block point is farther than 200 m
     from the nearest graph node for 2 blocks: 3 (207 m) and 178 (202 m).
+- **Schools: access and provision (basic school, main calculation).**
+  - **Schools.** Included: the municipal basic schools **Haapsalu Põhikool** (block 73, 598 pupils of grades 1–9)
+    and **Haapsalu Linna Algkool** (block 253, 282 pupils of grades 1–6); places = 880 pupils of grades 1–9 on 1 October
+    2026 (EHIS). Not included: **Haapsalu Viigi Kool** (EHIS flag `hev = jah`: school for children with special
+    educational needs, state-owned, pupils from the whole county) and **Haapsalu Montessori Kool** (private, 7 pupils
+    of grades 1–9). **Gymnasium:** only `time_to_gymnasium_min` to Läänemaa Ühisgümnaasium (block 245, grades 10–12,
+    304 pupils, state-owned), no model.
+  - **Demand.** 891 children aged 7–15 (census 2021, RL21003), distributed over the blocks in proportion to
+    `population_block` (assumption; whole numbers by the largest remainder method; column `children_7_15`).
+  - **Times.** `time_to_basic_school_min` is the walking time (matrix of the walk graph, 5 km/h) to the nearest of the two
+    basic schools; median 11.4 min, the maximum 49.7 min (block 3); `time_to_gymnasium_min`: median 19.5 min, maximum
+    64.3 min. Both columns are in `blocks.geojson`; map `data/schools_check.png`.
+  - **Law, PGS § 7 lõige 3** (https://www.riigiteataja.ee/akt/PGS, read on 2026-10-31): «(3) Vähemalt 80 protsendil õpilastest,
+    kelle jaoks põhikool on elukohajärgne kool, ei tohi kooli jõudmiseks kuluda rohkem kui 60 minutit.» The law does not say
+    how the way is made; **we count on foot** and take the nearest of the two schools as the school of the child.
+    Share of the 891 children (distributed demand) within a walking time of the nearest basic school: 10 min 42.3 %
+    (377 children), 15 min 75.1 % (669), 20 min 95.4 % (850), 30 min 100 %, 60 min 100 %. The norm (80 % within 60 minutes)
+    is met with 100 %.
+  - **`competitive_provision`**, `self_supply=True` (the default), `max_depth=1`, thresholds 10, 15, 20 min;
+    `provision_strong` of the town 0.423, 0.751, 0.921; blocks with children (173) with `provision_strong < 1`: 89, 43, 32
+    (the value of a block is 0 or 1 in all three cases); results with `self_supply=False` are the same. Columns
+    `provision_strong_10`, `_15`, `_20` in `blocks.geojson`. The places (880) are fewer than the children (891), so the value for
+    the town cannot be above 0.988.
+  - **Check of the code.** I suspected that `_supply_self` subtracts the used places twice. **It does not:** the line
+    `blocks_df[CAPACITY_LEFT_COLUMN] -= supply` is there once (`blocksnet/analysis/provision/competitive/core.py`, line 60);
+    my first reading came from a listing in which this line was printed twice. A toy example of three blocks (block 1: 15
+    places and 10 children, block 2: 8 children 5 min away, block 3: 4 children 20 min away, threshold 10 min) gives by
+    hand and in the code the same: 5 places left in block 1 after self-supply, `provision_strong` 1.0, 0.625 and 0.0.
+  - **Limitations.** The places are the **actual pupils of 2026, not the capacity** of the schools (EHIS open data has no
+    number of places), so the result shows how the schools are placed relative to the children, not whether there are enough
+    places. The census of 2021 is compared with the pupils of 2026. Some pupils live outside the town. Some children of the
+    town go to schools outside it (for example Uuemõisa Lasteaed-Algkool and Ridala Põhikool, which are outside the
+    settlement), or to the excluded schools. The age of the children by block is not known (demand follows the population).
+    **Haapsalu Linna Algkool teaches only grades 1–6**, while the model treats the places of the two schools as
+    interchangeable for all children aged 7–15 (the children of grades 7–9 cannot study there; its places are
+    282 pupils of grades 1–6). The result is therefore more favourable than the real situation for the children of
+    grades 7–9 near Linna Algkool and far from Põhikool.
+    EHIS and Statistics Estonia have no place of residence of the pupils by school or municipality. For the large blocks 2 and
+    172 the block point may lie in a forest.
 - **Missing floors are a finding.** Report how many buildings lack floors in OSM, in EHR,
   and in both, and what default BlocksNet uses then (1 floor).
 - **School provision uses Estonian data, not the BlocksNet norms.** The BlocksNet norms
