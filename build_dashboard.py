@@ -598,13 +598,17 @@ note = {
     "q2": "A pair is an official and an OSM building whose overlap is more than 50 % of the smaller one. Only numbers, no conclusions.",
 }
 
+def kcard(label, value, line):
+    return f'<div class="kcard"><small>{esc(label)}</small><b>{value}</b><span>{esc(line)}</span></div>'
+
+
 cards_html = "".join([
-    card(num(N['pop_census']), 'inhabitants, census 2021 (distributed over the blocks)'),
-    card(num(N['blocks']), 'urban blocks; ' + num(N['built_up']) + ' with buildings'),
-    card(num(N['off']) + ' / ' + num(N['osm']), 'buildings: official / OpenStreetMap'),
-    card(num(N['children']), 'children aged 7-15 (census 2021), distributed'),
-    card(num(N['places']), 'pupils in the two basic schools, 2026'),
-    card(pct(N['match_town']), 'official buildings with an OSM pair')])
+    kcard("Population", num(N['pop_census']), "census 2021, distributed over blocks"),
+    kcard("Urban blocks", num(N['blocks']), f"{num(N['built_up'])} with buildings"),
+    kcard("Buildings", num(N['off']) + " / " + num(N['osm']), "official / OpenStreetMap"),
+    kcard("Children 7\u201315", num(N['children']), "census 2021"),
+    kcard("Basic school pupils", num(N['places']), "two municipal schools, 2026"),
+    kcard("OSM match", pct(N['match_town']), "official buildings with an OSM pair")])
 
 
 def fig(title, svg, mapid=None, cap=""):
@@ -691,10 +695,15 @@ h2{font-size:clamp(26px,3.2vw,34px);font-weight:600;margin:0 0 8px}h3{font-size:
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:14px 0}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 16px;box-shadow:var(--shadow)}
 .card b{display:block;font-size:clamp(24px,2.4vw,30px);font-weight:600;line-height:1.15;color:var(--acc)}.card span{font-size:14px;color:var(--mut)}
-.cards.top{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.75fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)}
-@media (min-width:1000px){.cards.top .card b{white-space:nowrap}}
-@media (max-width:999px){.cards.top{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media (max-width:560px){.cards.top{grid-template-columns:repeat(2,minmax(0,1fr))}.cards.top .card:nth-child(3),.cards.top .card:nth-child(6){grid-column:span 2}}
+.cards.top{grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:1fr}
+@media (min-width:700px){.cards.top{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.kcard{position:relative;display:flex;flex-direction:column;gap:3px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 12px 11px;box-shadow:var(--shadow)}
+.kcard::before{content:"";position:absolute;left:14px;right:14px;top:0;height:4px;border-radius:0 0 4px 4px;background:var(--acc)}
+.kcard:nth-child(3n+2)::before{background:var(--coral)}
+.kcard:nth-child(3n)::before{background:var(--sea)}
+.kcard small{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;line-height:1.2;color:var(--mut)}
+.kcard b{font-family:Fraunces,Georgia,"Times New Roman",serif;font-weight:600;font-size:clamp(17px,5vw,28px);line-height:1.1;white-space:nowrap;color:var(--fg);font-variant-numeric:lining-nums tabular-nums}
+.kcard span{font-size:13px;line-height:1.2;color:var(--mut)}
 ul.kf{list-style:none;margin:8px 0 4px;padding:0;font-size:18.5px}
 ul.kf li{position:relative;padding-left:24px;margin:8px 0}
 ul.kf li::before{content:"";position:absolute;left:3px;top:.62em;width:8px;height:8px;background:var(--coral);transform:rotate(45deg)}
@@ -880,6 +889,7 @@ border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:13px;
 .maplegend .it{display:inline-block;margin:0 12px 2px 0}
 .lgbtn{display:none}
 .tap{display:none}
+.aboutbtn{display:none}
 .textcol section{padding:30px 0 24px;min-height:88vh;scroll-margin-top:60px}
 .textcol section:first-child{padding-top:30px}
 .textcol figure.chart{margin:14px 0}
@@ -900,6 +910,14 @@ details.more>summary{font-size:17px;padding:10px 14px}details.more>.body{padding
 html.app,body.app{height:100%;overflow:hidden}
 body.app{font-size:16px}
 .app header.hero,.app nav.top,.app #overview,.app .textcol,.app #details,.app footer,.app .story::before{display:none}
+body.cover .story,body.cover #details,body.cover .appbar,body.cover #sheet,body.cover nav.top{display:none}
+.explore{padding:6px 16px 28px}
+.exbtn{display:block;width:100%;font:600 18px "Source Sans 3",system-ui,sans-serif;color:#fff;background:var(--coral-dk);border:0;border-radius:999px;padding:16px 20px;box-shadow:var(--shadow);cursor:pointer}
+.app .aboutbtn{display:block;position:absolute;top:10px;right:56px;z-index:1000;font:600 12px "Source Sans 3",system-ui,sans-serif;color:var(--fg);background:rgba(251,247,240,.96);border:1px solid var(--line);border-radius:999px;padding:5px 12px;box-shadow:var(--shadow);cursor:pointer}
+.leaflet-popup-content{font-size:12px;line-height:1.3;margin:8px 10px}
+.leaflet-popup-content table{font-size:11.5px}
+.leaflet-popup-content td{padding:1px 5px}
+.leaflet-popup-content-wrapper{border-radius:10px}
 .app .insheet{display:block!important}
 .app .story{display:block}
 .app .mapcol{position:fixed;left:0;right:0;top:0;height:56vh;height:56dvh;padding:6px 8px 4px;background:var(--bg);z-index:1}
@@ -1023,7 +1041,7 @@ function hot(id,on){const l=byId[id];if(!l)return;if(on){l.setStyle({color:'#E86
 document.querySelectorAll('.pt[data-id="'+id+'"]').forEach(e=>e.classList.toggle('hot',on))}
 function restyle(){blocks.setStyle(f=>styleOf(f.properties));if(sel){byId[sel].setStyle(layerStyle(sel));byId[sel].bringToFront()}
 document.getElementById('lgbody').innerHTML=MODE[cur].leg()}
-function select(id,zoom){sel=id;restyle();const l=byId[id];l.bindPopup(popup(l.feature.properties),{maxHeight:300,maxWidth:300}).openPopup(l.getBounds().getCenter());
+function select(id,zoom){sel=id;restyle();const l=byId[id];l.bindPopup(popup(l.feature.properties),{maxHeight:isMobile?Math.round(document.getElementById('map').clientHeight*0.45)-24:300,maxWidth:isMobile?230:300,autoPanPaddingTopLeft:isMobile?[8,52]:[5,5]}).openPopup(l.getBounds().getCenter());
 l.once('popupclose',()=>{if(sel===id){sel=null;l.setStyle(layerStyle(id))}});if(zoom)map.fitBounds(l.getBounds(),{maxZoom:16,padding:[50,50]})}
 const sch=L.layerGroup();L.geoJSON(D.schools,{pointToLayer:(f,ll)=>L.marker(ll,{icon:L.divIcon({className:'',iconSize:[22,22],iconAnchor:[11,11],
 html:'<div style="font-size:'+(f.properties.basic?24:15)+'px;line-height:22px;text-align:center;color:'+(f.properties.basic?'#d73027':'#111')+';text-shadow:0 0 3px #fff,0 0 3px #fff">'+(f.properties.basic?'&#9733;':'&#9650;')+'</div>'})}).bindPopup('<b>'+f.properties.name+'</b><br>'+f.properties.kind+'<br>Pupils 2026: '+f.properties.students+'<br>'+f.properties.address)}).addTo(sch);
@@ -1063,8 +1081,8 @@ window.matchMedia('(max-width:999px)').addEventListener('change',()=>location.re
 if(!isMobile)observe();
 // phone: map on top, strip of section cards at the bottom, bottom sheet with the rest
 function initApp(){
-const ids=['overview','landuse','population','density','access','schools','q2','details'];
-document.body.classList.add('app');document.documentElement.classList.add('app');
+const ids=['landuse','population','density','access','schools','q2','details'];
+document.body.classList.add('cover');
 const bar=document.createElement('div');bar.className='appbar';bar.innerHTML='<div class="stripwrap"><div class="strip" id="strip"></div></div><div class="dots" id="dots"></div>';document.body.appendChild(bar);
 const sheet=document.createElement('div');sheet.id='sheet';sheet.setAttribute('role','dialog');sheet.setAttribute('aria-label','More');
 sheet.innerHTML='<div class="grab"><span class="handle"></span><b class="stitle"></b><button type="button" class="sclose" aria-label="Close">Close</button></div><div class="sbody" id="sbody"></div>';document.body.appendChild(sheet);
@@ -1081,7 +1099,7 @@ dots.addEventListener('click',e=>{const b=e.target.closest('button');if(b)go(+b.
 setCard(0);
 let held=[],timer=null;
 function restore(){clearTimeout(timer);held.reverse().forEach(h=>{h[0].classList.remove('insheet');h[1].insertBefore(h[0],h[2])});held=[]}
-function openSheet(id){restore();const s=document.getElementById(id),nodes=id==='overview'?[document.querySelector('header.hero'),s]:[s];
+function openSheet(id){restore();const s=document.getElementById(id),nodes=[s];
 nodes.forEach(n=>{held.push([n,n.parentNode,n.nextSibling]);n.classList.add('insheet');sb.appendChild(n)});
 sheet.querySelector('.stitle').textContent=JSON.parse(s.dataset.card).title;sb.scrollTop=0;sheet.classList.add('vis');requestAnimationFrame(()=>requestAnimationFrame(()=>sheet.classList.add('open')))}
 closeSheet=function(){if(!sheet.classList.contains('vis'))return;sheet.classList.remove('open');clearTimeout(timer);timer=setTimeout(()=>{restore();sheet.classList.remove('vis')},300)};
@@ -1092,7 +1110,11 @@ let y0=null;
 sheet.addEventListener('touchstart',e=>{y0=(e.target.closest('.grab')||sb.scrollTop<=0)?e.touches[0].clientY:null},{passive:true});
 sheet.addEventListener('touchmove',e=>{if(y0==null)return;const dy=e.touches[0].clientY-y0;if(dy>0){sheet.style.transition='none';sheet.style.transform='translateY('+dy+'px)'}},{passive:true});
 sheet.addEventListener('touchend',e=>{if(y0==null)return;const dy=e.changedTouches[0].clientY-y0;sheet.style.transition='';sheet.style.transform='';y0=null;if(dy>90)closeSheet()});
-setTimeout(()=>{fitted=false;fit()},50)}
+const ex=document.createElement('div');ex.className='explore';ex.innerHTML='<button type="button" class="exbtn">Explore the map &rarr;</button>';document.getElementById('overview').after(ex);
+const ab=document.createElement('button');ab.type='button';ab.className='aboutbtn';ab.textContent='About';document.querySelector('.mapwrap').appendChild(ab);L.DomEvent.disableClickPropagation(ab);
+function setApp(on){document.body.classList.toggle('app',on);document.documentElement.classList.toggle('app',on);document.body.classList.toggle('cover',!on);
+window.scrollTo(0,0);if(on){map.invalidateSize();fitted=false;fit();restyle()}else closeSheet()}
+ex.querySelector('button').addEventListener('click',()=>setApp(true));ab.addEventListener('click',()=>setApp(false))}
 if(isMobile)initApp();
 apply('landuse');state.active='landuse';
 })();
