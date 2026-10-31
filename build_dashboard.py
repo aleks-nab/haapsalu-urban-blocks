@@ -390,12 +390,14 @@ def bars_svg(items, w=420, dec=0, aria="Bar chart"):
 top10 = emb.nlargest(10, "population_block")
 top_ids = [int(x) for x in top10["block_id"]]
 sm_name_clusters = emb[emb["spacematrix_cluster"].notna()].groupby("morphotype_spacematrix")["spacematrix_cluster"].nunique()
-dup_names = [f"{k} ({v} clusters)" for k, v in sm_name_clusters.items() if v > 1]
+dup_names = [f"{k} ({v} groups)" for k, v in sm_name_clusters.items() if v > 1]
 top_items = [(f"Block {r.block_id} \u00b7 {r.land_use_display}" + (" \u00b7 large block" if r.large_block else ""), float(r.population_block), None, int(r.block_id)) for r in top10.itertuples()]
+DISP = {"gsi": "gsi (share of block covered by buildings)", "fsi": "fsi (floor space index)", "l": "l (average number of floors)",
+        "osr": "osr (open space ratio)", "mxi": "mxi (housing share of floor area)"}
 sum_rows = []
 for m, label in IND:
     d = summ(reg, m)
-    sum_rows.append([esc(label), num(d["n"]), num(d["mean"], 2), num(d["median"], 2), num(d["min"], 2), num(d["max"], 2), num(d["missing"])])
+    sum_rows.append([esc(DISP.get(m, label)), num(d["n"]), num(d["mean"], 2), num(d["median"], 2), num(d["min"], 2), num(d["max"], 2), num(d["missing"])])
 big_rows = [[str(int(r.block_id)), num(r.area_m2 / 1e6, 2)] + [("-" if pd.isna(getattr(r, m)) else num(getattr(r, m), 2)) for m, _ in IND]
             for r in emb[emb["large_block"] == 1].itertuples()]
 n_dev = int((emb["fsi"] > 0).sum())
@@ -410,45 +412,38 @@ kind_txt = ", ".join(f"{esc(k)} ({v})" for k, v in top_kinds.items())
 
 T["methods"] = f"""
 <h2>Methods &amp; limitations</h2>
-<h3>Method</h3>
+<h3>How it was made</h3>
 <ul>
-<li><b>Blocks.</b> BlocksNet <code>cut_urban_blocks</code> from OSM roads (BlocksNet road types plus
-<code>highway=service</code>; no footways or paths) and water. Railways are not used. Islands and slivers without
-buildings are dropped; blocks over {LARGE_BLOCK_LABEL_KM2} km&sup2; are marked.</li>
-<li><b>Buildings</b> come from the official ETAK + Building Register layer and from OSM; a building belongs to the block
-that contains its inside point and is not cut.</li>
-<li><b>Floors:</b> register value, else height / {METRES_PER_FLOOR} m (conditional), else 1.</li>
-<li><b>Population:</b> census 2021 total distributed by registry net area of dwellings.</li>
-<li><b>Land use:</b> cadastral purpose, class with the largest area share.</li>
-<li><b>Accessibility:</b> OSM walking network (cycleways without a <code>foot</code> tag are assumed walkable),
-{WALK_SPEED_KMH} km/h, shortest of parallel edges; the matrix is stored as <code>float16</code>.</li>
-<li><b>Schools:</b> EHIS schools inside the town; demand = children 7-15 distributed by population; BlocksNet
-<code>competitive_provision</code> with thresholds of {', '.join(str(t) for t in PROVISION)} minutes.</li>
-<li><b>MXI and morphotypes:</b> BlocksNet <code>mxi</code> = living / all floor area (footprint &times; floors, gross); a building
-is living if it has a dwelling use (<code>is_dwelling</code>), as a whole. Morphotypes from BlocksNet
-<code>get_spacematrix_morphotypes</code> and <code>get_strelka_morphotypes</code> for blocks with buildings.</li>
-<li><b>Q2:</b> pairing by overlap above 50 % of the smaller building.</li>
+<li><b>Blocks.</b> We cut the town into urban blocks along roads and water from OpenStreetMap (OSM). Streets and service roads count;
+footpaths and railways do not. Islands and tiny slivers without buildings are dropped. Blocks over {LARGE_BLOCK_LABEL_KM2} km&sup2; are marked as large.</li>
+<li><b>Buildings</b> come from two sources: the official building layer (Estonian Topographic Database, ETAK, with the Building Register) and OSM.
+A building belongs to the block that contains its centre point.</li>
+<li><b>Floors.</b> The number of floors comes from the register. If it is missing we use the height divided by {METRES_PER_FLOOR} m, and if there is no height, one floor.</li>
+<li><b>Population.</b> The 2021 census total is shared between the blocks by the floor area of their residential buildings.</li>
+<li><b>Land use.</b> The class that covers most of the land of the block, from the cadastre.</li>
+<li><b>Walking time.</b> Along the OSM walking network at {WALK_SPEED_KMH} km/h. Cycleways without a note about pedestrians are treated as walkable.</li>
+<li><b>Schools.</b> The school buildings of the Estonian Education Information System (EHIS) inside the town. The children aged 7&ndash;15 are shared
+between the blocks by population. Provision is calculated for walking limits of {PROVISION[0]}, {PROVISION[1]} and {PROVISION[2]} minutes.</li>
+<li><b>Housing share and morphotypes.</b> MXI is the share of the floor area that is housing. BlocksNet groups blocks by floors, density and
+housing share and gives each group a name (Spacematrix), and also sorts blocks into types by fixed rules (Strelka).</li>
+<li><b>OSM vs official.</b> A building in one source is matched with a building in the other if they overlap by more than half of the smaller one.</li>
 </ul>
 <h3>Limitations</h3>
 <ul>
-<li>{WALK_SPEED_KMH} km/h and {METRES_PER_FLOOR} m per floor are assumptions, not norms.</li>
-<li>MXI: the building counts as living as a whole, so a shop on the ground floor does not lower it; sheds and garages count
-as non-living and lower it.</li>
-<li>The thresholds of the Strelka morphotypes and the names of the Spacematrix clusters come from BlocksNet, not from our
-norms; the {nbnum['morphotype_params']['spacematrix_n_clusters']} clusters, KMeans, <code>random_state</code>
-{nbnum['morphotype_params']['spacematrix_random_state']} and scikit-learn {esc(nbnum['morphotype_params']['scikit_learn'])} are
-the BlocksNet defaults and the installed version. Different Spacematrix clusters can have the same name.</li>
-<li>The block point is snapped to the nearest node of the walking network; for a few blocks the choice of the node
-changes times by minutes. A few blocks are far from the nearest node of the network.</li>
-<li>Large blocks: the block point can lie in a forest.</li>
-<li>Land use is legal (cadastre), not actual.</li>
-<li>Population per block is a distributed total; the census is from 2021 and the pupils from 2026.</li>
-<li>Places of the schools are the pupils, not the capacity; the age of children by block is unknown.</li>
-<li>The buildings of the register and OSM are of different dates (OSM was downloaded
-{esc(dates['osm'])}, official buildings {esc(dates['etak_ehr_hooned'])}).</li>
-<li>The basemap is informative and unofficial (Maa- ja Ruumiamet); it is not part of the analysis.</li>
+<li>{WALK_SPEED_KMH} km/h and {METRES_PER_FLOOR} m per floor are assumptions, not standards.</li>
+<li>A building counts as housing as a whole. A shop on the ground floor does not lower MXI; sheds and garages count as non-housing and do lower it.</li>
+<li>The names and thresholds of the morphotypes come from BlocksNet, not from us. Different groups can have the same name.</li>
+<li>Each block is one point on the walking network. For a few blocks another choice of point would change the time by a few minutes,
+and a few blocks lie far from the network. In the large blocks the point can be in a forest.</li>
+<li>Land use is what the cadastre allows, not what is really there.</li>
+<li>People per block are a share of the town total. The census is from 2021 and the pupils from 2026.</li>
+<li>School places are the pupils, not the real capacity. The ages of the children in each block are not known.</li>
+<li>Both building sources were downloaded on {esc(dates['etak_ehr_hooned'])}, but each is updated on its own schedule: OSM by volunteers at any time, the register by the state.</li>
+<li>The basemap is for orientation only (Maa- ja Ruumiamet); it is not part of the analysis.</li>
 </ul>
-<p class="note">The full list with numbers is in <code>PLAN.md</code> in the repository.</p>
+<p class="tech">Technical note: BlocksNet 1.0.0a9; Spacematrix uses KMeans with {nbnum['morphotype_params']['spacematrix_n_clusters']} clusters,
+random_state {nbnum['morphotype_params']['spacematrix_random_state']}, scikit-learn {esc(nbnum['morphotype_params']['scikit_learn'])}.
+The full list with numbers is in <code>PLAN.md</code> in the repository.</p>
 """
 
 T["sources"] = f"""
@@ -493,18 +488,18 @@ taken_rows = [
     ["MXI of the town (living / all floor area, gross)", f"{nbnum['mxi_town']:.3f}", "Charts, Methods"],
     ["Pairs of blocks faster by more than 2 min with the cycleways", f"{num(nbnum['cycleway_pairs_faster_over_2min'])} of {num(nbnum['cycleway_pairs'])} ({pct(nbnum['cycleway_share_faster_over_2min'])})", "Key findings"],
     ["Vacant dwelling area, census 2021 (RL21218)", f"{num(stats['vacant_dwelling_area_m2_2021_haapsalu_linn'])} of {num(stats['all_dwelling_area_m2_2021_haapsalu_linn'])} m² ({pct(vacant_share, 0)})", "Key findings"],
-    ["Population from net dwelling area / from footprint × floors", f"{num(popcheck['population_net'])} / {num(popcheck['population_gross'])} people", "Population, Key findings"],
+    ["Population from net floor area of residential buildings / from footprint × floors", f"{num(popcheck['population_net'])} / {num(popcheck['population_gross'])} people", "Population, Key findings"],
 ]
 chk_rows = [[esc(c["name"]), c["nb"], c["dash"], "OK" if c["ok"] else "<b>DIFFERENT</b>"] for c in checks]
 T["checks"] = f"""
 <h2>Checks</h2>
-<p>Each indicator is calculated in the notebook (<code>data/notebook_numbers.json</code>) and again by
-<code>build_dashboard.py</code> from the data embedded in this page. <b>{n_ok} of {len(checks)} agree</b>{'' if n_bad == 0 else f'; <b>{n_bad} differ</b>'}.</p>
+<p>Every number on this page is calculated twice: once in the analysis notebook and once when this page is built. The table puts the two side by side.
+<b>{n_ok} of {len(checks)} rows agree</b>{'' if n_bad == 0 else f'; <b>{n_bad} differ</b>'}.</p>
 {table(['Indicator', 'Notebook', 'Dashboard', 'Result'], chk_rows, 'checks')}
-<h3>Numbers taken from the notebook (not recalculated here)</h3>
+<h3>Numbers read from the notebook (not recalculated here)</h3>
 {table(['Number', 'Value', 'Used in'], taken_rows)}
-<p class="note">To re-run: execute <code>notebook.ipynb</code> (it rewrites <code>data/</code>), then
-<code>python build_dashboard.py</code>.</p>
+<p class="tech">Technical note: the notebook values are in <code>data/notebook_numbers.json</code>. To re-run, execute <code>notebook.ipynb</code>
+(it rewrites <code>data/</code>), then <code>python build_dashboard.py</code>.</p>
 """
 
 leaflet_js = (LEAFLET / "leaflet.js").read_text(encoding="utf-8")
@@ -538,9 +533,12 @@ MORPH = {"spacematrix": {n: PALETTE[i % len(PALETTE)] for i, n in enumerate(sm_n
          "strelka": {n: PALETTE[i % len(PALETTE)] for i, n in enumerate(st_names)}}
 
 sm_items_c = []
+_ks = emb[emb["spacematrix_cluster"].notna()].groupby("morphotype_spacematrix")["spacematrix_cluster"].apply(lambda x: sorted(int(v) for v in x.unique()))
 for (name, cl), n_ in (emb.groupby(["morphotype_spacematrix", "spacematrix_cluster"], dropna=False).size().items()):
     if name != "not defined":
-        sm_items_c.append((f"{name} · cluster {int(cl)}", int(n_), MORPH["spacematrix"][name], None))
+        ks = _ks[name]
+        label = name if len(ks) == 1 else f"{name} (group {ks.index(int(cl)) + 1} of {len(ks)})"
+        sm_items_c.append((label, int(n_), MORPH["spacematrix"][name], None))
 sm_items_c.append(("not defined (no buildings)", int((emb["morphotype_spacematrix"] == "not defined").sum()), NA_COLOUR, None))
 st_items_c = [((k if k != "not defined" else "not defined (no buildings)"), int(v),
                NA_COLOUR if k == "not defined" else MORPH["strelka"][k], None) for k, v in st_counts.items()]
@@ -571,9 +569,9 @@ high_rise = int((emb["l"] >= 9).sum())
 lead = {
     "landuse": f"{num(res_blocks)} of {num(N['blocks'])} blocks are residential by their cadastral purpose, but {pct(non_res_pop)} "
                f"of the people live in blocks of another class.",
-    "population": f"{num(N['pop_census'])} people are spread over {num(pop_blocks)} blocks with dwellings; the 10 most populated "
+    "population": f"{num(N['pop_census'])} people are spread over {num(pop_blocks)} blocks with residential buildings; the 10 most populated "
                   f"blocks hold {pct(top10_share, 0)} of them. The median is {num(dens.median(), 0)} people per hectare.",
-    "density": f"Typical built blocks are low and loose: of {num(n_dev)} blocks with buildings the median fsi is "
+    "density": f"Typical built blocks are low and loose: of {num(n_dev)} blocks with buildings the median floor space index (fsi) is "
                f"{emb.loc[emb['fsi'] > 0, 'fsi'].median():.2f} and the median block has {emb['l'].median():.1f} floors on average"
                f"{'; no block reaches the high-rise group' if high_rise == 0 else ''}.",
     "access": f"Walking between blocks takes a median of {num(N['acc_med'], 1)} min; the most remote block has a median of "
@@ -585,7 +583,7 @@ lead = {
 note = {
     "landuse": "Cadastral land-use purpose (legal), not actual use. A block is <i>mixed</i> if its largest class covers less than "
                f"{int(MIXED_SHARE * 100)} % of the parcels.",
-    "population": "The census total of Haapsalu linn is distributed over the blocks by registry net area of the dwellings; it is not "
+    "population": "The census total of Haapsalu linn is distributed over the blocks by the net enclosed floor area of their residential buildings in the register; it is not "
                   f"a count per block. The scale is clipped at the 95th percentile ({num(scale['pph'], 0)} people per hectare).",
     "density": f"fsi = floor area / block area; gsi = footprint / block area; L = fsi / gsi; OSR = (1 − gsi) / fsi; "
                f"MXI = living share of the gross floor area. The fsi scale is clipped at the 95th percentile ({scale['fsi']:.2f}). "
@@ -597,6 +595,10 @@ note = {
                f"on foot: {pct(walk[60]['share'])} of the children are within 60 min.",
     "q2": "A pair is an official and an OSM building whose overlap is more than 50 % of the smaller one. Only numbers, no conclusions.",
 }
+
+def tech(txt):
+    return f'<p class="tech">Technical note: {txt}</p>'
+
 
 def kcard(label, value, line):
     return f'<div class="kcard"><small>{esc(label)}</small><b>{value}</b><span>{esc(line)}</span></div>'
@@ -625,11 +627,16 @@ FONTS_HTML = (f'<p><b>Fonts</b>: Fraunces (&copy; The Fraunces Project Authors) 
               f'in this page (latin subset, from Google Fonts); the licence texts are in <a href="{REPO_URL}/tree/main/vendor/fonts">'
               f'<code>vendor/fonts/</code></a>. The lace pattern is a simple geometric drawing inspired by Haapsalu lace shawls.</p>')
 summary_body = (
-    f"<p>{num(len(reg))} blocks without the {N['large']} large blocks. Missing = blocks where the indicator is empty.</p>"
+    f"<p>This table describes {num(len(reg))} blocks. The {N['large']} large blocks are listed below it, because they would distort the averages. "
+    "<i>N</i> is the number of blocks that have a value; <i>missing</i> is the number that do not "
+    "(for example, blocks without buildings have no average floors, OSR or MXI). The <i>median</i> is the middle value.</p>"
+    "<p class=\"note\">gsi = share of the block covered by buildings; fsi = floor space index (floor area per m² of block); "
+    "l = average number of floors; osr = open space ratio (free land per m² of floor area); "
+    "mxi = share of the floor area that is housing. Times are on foot.</p>"
     + table(['Indicator', 'N', 'Mean', 'Median', 'Min', 'Max', 'Missing'], sum_rows)
     + "<h3>Large blocks</h3>" + table(['Block', 'Area, km²', 'People', 'gsi', 'fsi', 'l', 'osr', 'mxi', 'Walk, min', 'School, min'], big_rows)
-    + '<div class="split2">' + fig("fsi, blocks with buildings", hist_svg(reg.loc[reg['fsi'] > 0, 'fsi'], 'fsi (floor space index)'))
-    + fig("l, mean number of floors", hist_svg(reg['l'].dropna(), 'l (mean number of floors)')) + "</div>")
+    + '<div class="split2">' + fig("Floor space index (fsi), blocks with buildings", hist_svg(reg.loc[reg['fsi'] > 0, 'fsi'], 'fsi (floor space index)'))
+    + fig("Average number of floors (l)", hist_svg(reg['l'].dropna(), 'l (average number of floors)')) + "</div>")
 details_html = "".join(f'<details><summary>{esc(t)}</summary><div class="body">{b}</div></details>' for t, b in [
     ("Summary statistics", summary_body), ("Methods & limitations", body_of("methods")),
     ("Data & credits", body_of("sources") + FONTS_HTML), (f"Checks: {n_ok} of {len(checks)} agree", body_of("checks"))])
@@ -804,41 +811,64 @@ morph_chart = ('<figure class="chart"><figcaption>Blocks by morphotype (BlocksNe
                '<div class="modes3"><label><input type="radio" name="morphchart" value="sm" checked> Spacematrix</label>'
                '<label><input type="radio" name="morphchart" value="st"> Strelka</label></div>'
                f'<div class="morphchart" data-k="sm">{bars_svg(sm_group, aria="Blocks by Spacematrix morphotype")}'
-               '<p class="note">Clusters with the same name are added up (KMeans of l, fsi, mxi).</p></div>'
+               '<p class="note">Groups with the same name are added up.</p></div>'
                f'<div class="morphchart" data-k="st" hidden>{bars_svg(st_group, aria="Blocks by Strelka morphotype")}'
-               '<p class="note">Rules and thresholds are in the BlocksNet code, not ours.</p></div></figure>')
+               '<p class="note">The Strelka types follow fixed rules from BlocksNet (floors, density and share of housing). They are not our own norms.</p></div></figure>')
 
 body3 = {
     "landuse": fig("Blocks by land-use class", bars_svg(lu_items2, aria="Blocks by land use"))
-    + more("More on land use", table(['Class', 'Blocks', 'Population', 'Share of population', 'Area, km²'], lu_rows)),
+    + more("More on land use",
+           f"<p>Each block gets the land-use class that covers most of its land. A block where the largest class covers less than {int(MIXED_SHARE * 100)} % of the land is called mixed. "
+           "The classes come from the cadastre, which records what each parcel may be used for, not what is really there.</p>"
+           "<p>The table shows, for each class, how many blocks it has, how many people live in them and how much land they cover.</p>"
+           + table(['Class', 'Blocks', 'Population', 'Share of population', 'Area, km²'], lu_rows)
+           + tech("OpenStreetMap land use is not used; the class with the largest share of parcel area wins (BlocksNet assign_land_use).")),
     "population": fig("10 blocks with the most people", bars_svg(top_items, aria="Top 10 blocks by population"), None,
                       "Distributed census population. " + HOC + " a bar to find the block on the map.")
-    + more("More on population", f"<p>The census total is distributed over the blocks by the registry net area of the dwellings. "
-           f"For comparison, the same population estimated from floor area would be {num(popcheck['population_net'])} people "
-           f"({popcheck['ratio_net_to_official']:.2f} times the census) from the registry net area and "
-           f"{num(popcheck['population_gross'])} ({popcheck['ratio_gross_to_official']:.2f} times) from footprint × floors, "
-           f"which is why the total is distributed instead.</p>"),
+    + more("More on population",
+           f"<p>The census counts people for the whole town, not for single blocks. We share the town total of {num(N['pop_census'])} people "
+           "between the blocks in proportion to the floor area of their residential buildings in the building register.</p>"
+           f"<p>Why not estimate it directly? Dividing the floor area of residential buildings by the average living space per person ({popcheck['living_area_per_person_m2']} m²) "
+           f"would give {num(popcheck['population_net'])} people, {popcheck['ratio_net_to_official']:.2f} times the census. "
+           f"Using building footprint × floors would give {num(popcheck['population_gross'])}, {popcheck['ratio_gross_to_official']:.2f} times. "
+           f"One known reason: in the census, about {vacant_share * 100:.0f} % of the floor area of dwellings stands empty. So the real census total is shared out instead.</p>"
+           + tech("home floor area = net enclosed floor area (suletud netopind) of residential buildings in the register, including stairs and corridors, not only flats; the second estimate uses footprint × floors with the floors of the register.")),
     "density": radios("mode-density", [("fsi", "Floor space index (fsi)"), ("mxi", "MXI (living share)"),
                                        ("spacematrix", "Spacematrix morphotype"), ("strelka", "Strelka morphotype")], "fsi")
     + fig("Spacematrix: fsi against gsi", scatter() + SC_LEGEND, None,
           "Dot colour = land-use class. Solid lines: constant L (mean floors); dashed: constant OSR.")
     + morph_chart
     + more("More on density",
-           f"<p>{note['density']}</p>"
-           + fig("All Spacematrix clusters", bars_svg(sm_items_c, aria="Blocks by Spacematrix cluster"),
-                 cap=f"Each bar is one KMeans cluster ({nbnum['morphotype_params']['spacematrix_n_clusters']} clusters, random_state "
-                     f"{nbnum['morphotype_params']['spacematrix_random_state']}, scikit-learn {esc(nbnum['morphotype_params']['scikit_learn'])}). "
-                     f"<b>Different clusters can have the same name</b> because the name comes from the cluster medians "
-                     f"({esc('; '.join(dup_names)) if dup_names else 'none here'}).")
-           + fig("MXI of the blocks with buildings", mxi_hist,
-                 cap="The whole building counts as living if it has a dwelling use; sheds and garages count as non-living.")),
+           "<p><b>How to read the numbers.</b> The floor space index (fsi) is the floor area per m² of block. "
+           "The ground space index (gsi) is the share of the block covered by buildings. L is the average number of floors. "
+           "The open space ratio (OSR) is the free land per m² of floor area. MXI is the share of the floor area that is housing.</p>"
+           f"<p>On the map the fsi colours stop at {scale['fsi']:.2f}, the value that 95 out of 100 blocks with buildings stay under, "
+           "so a few very dense blocks do not hide the differences between the rest.</p>"
+           "<p><b>How the morphotypes were made.</b> BlocksNet groups blocks that look alike (similar number of floors, similar density "
+           "and a similar share of housing) and names each group after its typical block. Some groups end up with the same name: "
+           "they are similar but not identical, so they are added up on the main card.</p>"
+           + fig("All Spacematrix groups", bars_svg(sm_items_c, aria="Blocks by Spacematrix group"),
+                 cap=f"Each bar is one group of blocks. Names shared by several groups: {esc('; '.join(dup_names)) if dup_names else 'none here'}.")
+           + fig("Housing share (MXI) of the blocks with buildings", mxi_hist,
+                 cap="A building counts as housing if it has a dwelling use, as a whole. A shop on the ground floor does not lower the value; "
+                     "sheds and garages count as non-housing and do lower it.")
+           + tech(f"KMeans, {nbnum['morphotype_params']['spacematrix_n_clusters']} clusters, random_state "
+                  f"{nbnum['morphotype_params']['spacematrix_random_state']}, scikit-learn {esc(nbnum['morphotype_params']['scikit_learn'])}; "
+                  "names and thresholds are BlocksNet's.")),
     "access": fig("Median walking time to the other blocks", acc_hist),
     "schools": radios("mode-schools", [("time", "Walking time"), ("p10", "Served within 10 min"), ("p15", "within 15 min"),
                                        ("p20", "within 20 min")], "time")
     + fig("Children aged 7-15 by walking time to the nearest basic school", bars_svg(band_items, aria="Children by walking time"))
-    + more("More on schools", '<h3>Children within a walking time</h3>' + table(['Walking time', 'Children', 'Share of the children', 'Blocks'], w_rows)
-           + '<h3>Provision (BlocksNet competitive_provision)</h3>'
-           + table(['Threshold', 'Provision (strong), town', 'Blocks with children not fully served'], p_rows)),
+    + more("More on schools",
+           f"<p>This table counts the {num(N['children'])} children aged 7\u201315 by walking time to the nearest of the two municipal basic schools. "
+           "The children are shared between the blocks in proportion to the population, because the census has no ages by block.</p>"
+           + table(['Walking time', 'Children', 'Share of the children', 'Blocks'], w_rows)
+           + "<p><b>Places at school.</b> Here every school place goes to one child who lives within the walking time. "
+             "The second table shows what share of the children get a place. A school has as many places as it had pupils in 2026, "
+             "because the register has no capacity figure. So the result shows how well the schools are placed, "
+             "not whether there are enough places.</p>"
+           + table(['Walking time', 'Share of children with a place', 'Blocks where some children get no place'], p_rows)
+           + tech(f"BlocksNet competitive_provision (strong provision), limits of {PROVISION[0]}, {PROVISION[1]} and {PROVISION[2]} minutes; walking speed {WALK_SPEED_KMH} km/h.")),
     "q2": '<div class="cards two">' + card(num(N['off_un']), 'official buildings without an OSM pair (of ' + num(N['off']) + ')')
     + card(num(N['osm_un']), 'OSM buildings without an official pair (of ' + num(N['osm']) + ')')
     + card(pct(N['floors_off']), 'official buildings with floors in the register')
@@ -895,6 +925,7 @@ border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:13px;
 .textcol figure.chart{margin:14px 0}
 details.more{box-shadow:none;margin:10px 0;border-radius:12px}
 details.more>summary{font-size:17px;padding:10px 14px}details.more>.body{padding:0 14px 14px}
+.tech{font-size:12px;line-height:1.35;color:var(--mut);margin:10px 0 0}
 .tt{background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:8px;font:14px "Source Sans 3",system-ui,sans-serif;box-shadow:var(--shadow)}
 .leaflet-popup-content{font-size:14px;margin:12px 14px;font-family:"Source Sans 3",system-ui,sans-serif;font-variant-numeric:lining-nums tabular-nums}
 .leaflet-popup-content table{font-size:13px}
