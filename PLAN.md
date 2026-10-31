@@ -171,6 +171,12 @@ way into OSM.
   - **Different Spacematrix clusters can have the same name** (for example three clusters are "low-rise low-density
     residential"); this is a feature of the method (the name comes from the cluster medians), and the dashboard
     labels it on the chart.
+- **Strelka typology: computed, not shown (2026-10-31).** Strelka typology computed but not shown on the dashboard — Russian urban-planning
+  typology, not relevant for an Estonian town. The column `morphotype_strelka` stays in `blocks.geojson` unchanged. Checked in the installed
+  BlocksNet 1.0.0a9 (`analysis/morphotypes/strelka.py`, package metadata) and in the README of the repository: they do not say where the
+  typology comes from, so the Russian origin is the author's judgement, not a quotation; the dashboard only says that BlocksNet also offers
+  it and that it is not used. The source of the Spacematrix method (Berghauser Pont and Haupt) is not named there either, so it is not cited
+  on the dashboard.
 - **Blocks with OSM buildings only** (`built_up = True` but `gsi = 0`, one OSM building each, no
   official building): block_id 11, 29, 62, 86, 144, 293. They go into the Q2 comparison (OSM
   buildings without an official pair).

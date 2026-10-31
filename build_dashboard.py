@@ -111,7 +111,7 @@ b = blocks_raw.copy()
 b["pph"] = b["population_block"] / (b["area_m2"] / 10_000)
 cols = {"block_id": 0, "area_m2": 0, "land_use_display": None, "share": 3, "population_block": 4, "pph": 1,
         "gsi": 5, "fsi": 5, "l": 4, "osr": 3, "mxi": 4, "morphotype_spacematrix": None,
-        "spacematrix_cluster": None, "morphotype_strelka": None, "median_accessibility": 4, "time_to_basic_school_min": 4,
+        "spacematrix_cluster": None, "median_accessibility": 4, "time_to_basic_school_min": 4,
         "time_to_gymnasium_min": 4, "children_7_15": 0, "provision_strong_10": 3, "provision_strong_15": 3,
         "provision_strong_20": 3, "match_rate": 3, "n_official_unmatched": 0, "n_osm_unmatched": 0,
         "n_official_q2": 0, "n_osm_q2": 0, "floors_coverage_official": 2, "large_block": None, "built_up": None,
@@ -261,12 +261,9 @@ def fmt_summ(d):
 for m, label in IND:
     chk(f"{label}: N / mean / median / min / max (without large blocks)", nbnum["summary_without_large"][m], summ(reg, m), fmt_summ)
 sm_counts = emb["morphotype_spacematrix"].value_counts().sort_index()
-st_counts = emb["morphotype_strelka"].value_counts().sort_index()
-assert set(sm_counts.index) == set(nbnum["morphotype_spacematrix_counts"]) and set(st_counts.index) == set(nbnum["morphotype_strelka_counts"])
+assert set(sm_counts.index) == set(nbnum["morphotype_spacematrix_counts"])
 for name, c in nbnum["morphotype_spacematrix_counts"].items():
     chk(f"Spacematrix morphotype: {name}", c, int(sm_counts[name]), i0)
-for name, c in nbnum["morphotype_strelka_counts"].items():
-    chk(f"Strelka morphotype: {name}", c, int(st_counts[name]), i0)
 chk("Spacematrix clusters", nbnum["spacematrix_clusters"], int(emb["spacematrix_cluster"].nunique()), i0)
 n_ok = sum(c["ok"] for c in checks)
 
@@ -425,7 +422,8 @@ A building belongs to the block that contains its centre point.</li>
 <li><b>Schools.</b> The school buildings of the Estonian Education Information System (EHIS) inside the town. The children aged 7&ndash;15 are shared
 between the blocks by population. Provision is calculated for walking limits of {PROVISION[0]}, {PROVISION[1]} and {PROVISION[2]} minutes.</li>
 <li><b>Housing share and morphotypes.</b> MXI is the share of the floor area that is housing. BlocksNet groups blocks by floors, density and
-housing share and gives each group a name (Spacematrix), and also sorts blocks into types by fixed rules (Strelka).</li>
+housing share and gives each group a name (Spacematrix).</li>
+<li>BlocksNet also offers the Strelka typology; it is not used here.</li>
 <li><b>OSM vs official.</b> A building in one source is matched with a building in the other if they overlap by more than half of the smaller one.</li>
 </ul>
 <h3>Limitations</h3>
@@ -528,9 +526,7 @@ PALETTE = ["#2A6F97", "#8FC1B5", "#E5B25D", "#E8604C", "#7C5E99", "#5FA88A", "#A
 NA_COLOUR = "#E3DACA"
 lu_items2 = [(k, int(v), LAND_COLOURS.get(k), None) for k, v in emb["land_use_display"].value_counts().items()]
 sm_names = sorted(n for n in emb["morphotype_spacematrix"].unique() if n != "not defined")
-st_names = sorted(n for n in emb["morphotype_strelka"].unique() if n != "not defined")
-MORPH = {"spacematrix": {n: PALETTE[i % len(PALETTE)] for i, n in enumerate(sm_names)},
-         "strelka": {n: PALETTE[i % len(PALETTE)] for i, n in enumerate(st_names)}}
+MORPH = {"spacematrix": {n: PALETTE[i % len(PALETTE)] for i, n in enumerate(sm_names)}}
 
 sm_items_c = []
 _ks = emb[emb["spacematrix_cluster"].notna()].groupby("morphotype_spacematrix")["spacematrix_cluster"].apply(lambda x: sorted(int(v) for v in x.unique()))
@@ -540,8 +536,6 @@ for (name, cl), n_ in (emb.groupby(["morphotype_spacematrix", "spacematrix_clust
         label = name if len(ks) == 1 else f"{name} (group {ks.index(int(cl)) + 1} of {len(ks)})"
         sm_items_c.append((label, int(n_), MORPH["spacematrix"][name], None))
 sm_items_c.append(("not defined (no buildings)", int((emb["morphotype_spacematrix"] == "not defined").sum()), NA_COLOUR, None))
-st_items_c = [((k if k != "not defined" else "not defined (no buildings)"), int(v),
-               NA_COLOUR if k == "not defined" else MORPH["strelka"][k], None) for k, v in st_counts.items()]
 mxi_hist = hist_svg(emb["mxi"].dropna(), "mxi (living share of floor area)")
 acc_hist = hist_svg(reg["median_accessibility"], "median walking time to the other blocks, min")
 
@@ -565,7 +559,6 @@ SC_LEGEND = ('<div class="lg">' + "".join(f'<span><i style="background:{LAND_COL
 res_blocks = int((emb["land_use_display"] == "residential").sum())
 top10_share = float(top10["population_block"].sum() / N["pop"])
 n_dev = int((emb["fsi"] > 0).sum())
-high_rise = int((emb["l"] >= 9).sum())
 lead = {
     "landuse": f"{num(res_blocks)} of {num(N['blocks'])} blocks are residential by their cadastral purpose, but {pct(non_res_pop)} "
                f"of the people live in blocks of another class.",
@@ -573,7 +566,7 @@ lead = {
                   f"blocks hold {pct(top10_share, 0)} of them. The median is {num(dens.median(), 0)} people per hectare.",
     "density": f"Typical built blocks are low and loose: of {num(n_dev)} blocks with buildings the median floor space index (fsi) is "
                f"{emb.loc[emb['fsi'] > 0, 'fsi'].median():.2f} and the median block has {emb['l'].median():.1f} floors on average"
-               f"{'; no block reaches the high-rise group' if high_rise == 0 else ''}.",
+               f"; the highest block average is {emb['l'].max():.1f} floors.",
     "access": f"Walking between blocks takes a median of {num(N['acc_med'], 1)} min; the most remote block has a median of "
               f"{num(N['acc_max'], 1)} min to all others.",
     "schools": f"{children_line}: {pct(walk[10]['share'])} within 10 min, {pct(walk[15]['share'])} within 15 min.",
@@ -805,15 +798,10 @@ def morph_items(col, colours, with_clusters):
 
 
 sm_group = morph_items("morphotype_spacematrix", MORPH["spacematrix"], True)
-st_group = morph_items("morphotype_strelka", MORPH["strelka"], False)
-assert len(sm_group) <= 7 and len(st_group) <= 7
+assert len(sm_group) <= 7
 morph_chart = ('<figure class="chart"><figcaption>Blocks by morphotype (BlocksNet)</figcaption>'
-               '<div class="modes3"><label><input type="radio" name="morphchart" value="sm" checked> Spacematrix</label>'
-               '<label><input type="radio" name="morphchart" value="st"> Strelka</label></div>'
-               f'<div class="morphchart" data-k="sm">{bars_svg(sm_group, aria="Blocks by Spacematrix morphotype")}'
-               '<p class="note">Groups with the same name are added up.</p></div>'
-               f'<div class="morphchart" data-k="st" hidden>{bars_svg(st_group, aria="Blocks by Strelka morphotype")}'
-               '<p class="note">The Strelka types follow fixed rules from BlocksNet (floors, density and share of housing). They are not our own norms.</p></div></figure>')
+               f'{bars_svg(sm_group, aria="Blocks by Spacematrix morphotype")}'
+               '<p class="note">Groups with the same name are added up.</p></figure>')
 
 body3 = {
     "landuse": fig("Blocks by land-use class", bars_svg(lu_items2, aria="Blocks by land use"))
@@ -834,7 +822,7 @@ body3 = {
            f"One known reason: in the census, about {vacant_share * 100:.0f} % of the floor area of dwellings stands empty. So the real census total is shared out instead.</p>"
            + tech("home floor area = net enclosed floor area (suletud netopind) of residential buildings in the register, including stairs and corridors, not only flats; the second estimate uses footprint × floors with the floors of the register.")),
     "density": radios("mode-density", [("fsi", "Floor space index (fsi)"), ("mxi", "MXI (living share)"),
-                                       ("spacematrix", "Spacematrix morphotype"), ("strelka", "Strelka morphotype")], "fsi")
+                                       ("spacematrix", "Spacematrix morphotype")], "fsi")
     + fig("Spacematrix: fsi against gsi", scatter() + SC_LEGEND, None,
           "Dot colour = land-use class. Solid lines: constant L (mean floors); dashed: constant OSR.")
     + morph_chart
@@ -1024,7 +1012,7 @@ const prov=n=>({f:p=>{const v=p['provision_strong_'+n];return v==null?{fillColor
 leg:()=>'<b>Served within '+n+' min</b><br><span class="it">'+sw('#3E8F82')+'children served</span><span class="it">'+sw('#C9473A')+'not served</span>'+nodata('no children')+'<br>'+SCHLEG+LARGE,
 tip:p=>{const v=p['provision_strong_'+n];return v==null?'no children':(v>=1?'served within '+n+' min':'not served within '+n+' min')}});
 const morph=(k,key)=>({f:p=>({fillColor:MC[k][p[key]]||NA,fillOpacity:.85}),
-leg:()=>cat((k==='spacematrix'?'Spacematrix':'Strelka')+' morphotype (BlocksNet)',Object.keys(MC[k]).map(n=>[n,MC[k][n]]))+nodata('not defined (no buildings)')+LARGE,
+leg:()=>cat('Spacematrix morphotype (BlocksNet)',Object.keys(MC[k]).map(n=>[n,MC[k][n]]))+nodata('not defined (no buildings)')+LARGE,
 tip:p=>p[key]});
 const MODE={
 landuse:{f:p=>({fillColor:LC[p.land_use_display]||NA,fillOpacity:.8}),leg:()=>cat('Land use (cadastral purpose)',Object.keys(LC).filter(k=>k!=='agriculture').map(k=>[k,LC[k]]))+LARGE,tip:p=>p.land_use_display},
@@ -1034,7 +1022,7 @@ fsi:{f:p=>p.fsi>0?{fillColor:ramp(SEQ.blue,p.fsi/C.scale.fsi),fillOpacity:.85}:{
 leg:()=>cbar('fsi (floor space index)',SEQ.blue,'0',C.scale.fsi.toFixed(2)+'+')+nodata('no buildings')+LARGE,tip:p=>p.fsi>0?'fsi '+fmt.f2(p.fsi):'no buildings'},
 mxi:{f:p=>p.mxi==null?{fillColor:NA,fillOpacity:.5}:{fillColor:ramp(SEQ.green,p.mxi),fillOpacity:.85},
 leg:()=>cbar('MXI: living share of the floor area',SEQ.green,'0','1')+nodata('no buildings')+LARGE,tip:p=>p.mxi==null?'no buildings':'MXI '+fmt.f2(p.mxi)},
-spacematrix:morph('spacematrix','morphotype_spacematrix'),strelka:morph('strelka','morphotype_strelka'),
+spacematrix:morph('spacematrix','morphotype_spacematrix'),
 access:{f:p=>({fillColor:ramp(SEQ.heat,(p.median_accessibility-C.scale.acc[0])/(C.scale.acc[1]-C.scale.acc[0])),fillOpacity:.85}),
 leg:()=>cbar('Median walking time to the other blocks, min',SEQ.heat,Math.round(C.scale.acc[0]),Math.round(C.scale.acc[1])+'+')+LARGE,tip:p=>fmt.f1(p.median_accessibility)+' min'},
 time:{f:p=>({fillColor:ramp(SEQ.heat,p.time_to_basic_school_min/C.scale.time),fillOpacity:.85}),
@@ -1047,7 +1035,7 @@ const SECMODE={landuse:'landuse',population:'population',density:'fsi',access:'a
 const state={mode:Object.assign({},SECMODE),active:null,q2:{official:true,osm:true,absent:true}};
 let cur='landuse',sel=null,baseOn=true,closeSheet=function(){};
 const isMobile=window.matchMedia('(max-width:999px)').matches;
-const ALL=[['Land use','land_use_display','txt'],['People (distributed)','population_block','f1'],['People per hectare','pph','f1'],['fsi','fsi','f3'],['gsi','gsi','f3'],['L (mean floors)','l','f2'],['OSR','osr','osr'],['MXI','mxi','f2'],['Spacematrix','morphotype_spacematrix','txt'],['Strelka','morphotype_strelka','txt'],['Median walking time, min','median_accessibility','f1'],['Time to basic school, min','time_to_basic_school_min','f1'],['Children 7-15','children_7_15','int'],['Served within 10 / 15 / 20 min',null,null],['Official buildings','n_official_q2','int'],['Official without OSM pair','n_official_unmatched','int'],['OSM buildings','n_osm_q2','int'],['OSM without official pair','n_osm_unmatched','int'],['Match rate','match_rate','pct']];
+const ALL=[['Land use','land_use_display','txt'],['People (distributed)','population_block','f1'],['People per hectare','pph','f1'],['fsi','fsi','f3'],['gsi','gsi','f3'],['L (mean floors)','l','f2'],['OSR','osr','osr'],['MXI','mxi','f2'],['Spacematrix','morphotype_spacematrix','txt'],['Median walking time, min','median_accessibility','f1'],['Time to basic school, min','time_to_basic_school_min','f1'],['Children 7-15','children_7_15','int'],['Served within 10 / 15 / 20 min',null,null],['Official buildings','n_official_q2','int'],['Official without OSM pair','n_official_unmatched','int'],['OSM buildings','n_osm_q2','int'],['OSM without official pair','n_osm_unmatched','int'],['Match rate','match_rate','pct']];
 function popup(p){const rows=ALL.map(r=>{if(r[1]===null)return '<tr><td>'+r[0]+'</td><td style="text-align:right">'+[10,15,20].map(t=>{const v=p['provision_strong_'+t];return v==null?'-':(v>=1?'yes':'no')}).join(' / ')+'</td></tr>';
 return '<tr><td>'+r[0]+'</td><td style="text-align:right">'+fmt[r[2]](p[r[1]])+'</td></tr>'}).join('');
 return '<b>Block '+p.block_id+'</b>'+(p.large_block?' (large block)':'')+'<table>'+rows+'</table>'}
@@ -1085,13 +1073,8 @@ let fitted=false;function fit(){map.invalidateSize();if(!fitted){map.fitBounds(b
 fit();window.addEventListener('load',()=>{fitted=false;fit()});
 if(window.ResizeObserver)new ResizeObserver(()=>map.invalidateSize()).observe(document.getElementById('map'));
 // controls inside the sections
-function syncMorph(k){const r=document.querySelector('input[name="morphchart"][value="'+k+'"]');if(r)r.checked=true;
-document.querySelectorAll('.morphchart').forEach(d=>d.hidden=d.dataset.k!==k)}
 document.addEventListener('change',e=>{const t=e.target;
-if(t.name&&t.name.indexOf('mode-')===0){const sec=t.name.slice(5);state.mode[sec]=t.value;state.active=sec;apply(sec);
-if(sec==='density'&&(t.value==='spacematrix'||t.value==='strelka'))syncMorph(t.value==='spacematrix'?'sm':'st')}
-if(t.name==='morphchart'){syncMorph(t.value);const v=t.value==='sm'?'spacematrix':'strelka';state.mode.density=v;
-const r=document.querySelector('input[name="mode-density"][value="'+v+'"]');if(r)r.checked=true;state.active='density';apply('density')}
+if(t.name&&t.name.indexOf('mode-')===0){const sec=t.name.slice(5);state.mode[sec]=t.value;state.active=sec;apply(sec)}
 if(t.dataset&&t.dataset.q2){state.q2[t.dataset.q2]=t.checked;if(state.active==='q2')map[t.checked?'addLayer':'removeLayer'](q2g[t.dataset.q2])}});
 // link between the charts and the map
 document.addEventListener('mouseover',e=>{const c=e.target.closest&&e.target.closest('.chart .pt');if(c)hot(+c.dataset.id,true)});
