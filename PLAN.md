@@ -172,6 +172,14 @@ way into OSM.
     largest share, 16 of them tie with another purpose and `siht1` is taken). `ULDKASUTATAV_MAA` (public-use
     land, 56 % of the parcel area, mostly forest and large green areas) is RECREATION as a whole. A block
     gets the class with the largest share even if that share is small (30 blocks have `share < 0.5`).
+  - **Display class.** `blocks.geojson` has `land_use_display`: equal to `land_use`, but `mixed` where
+    `share < 0.5` (30 blocks). The column `land_use` of BlocksNet is not changed. **The dashboard uses
+    `land_use_display`.** The threshold 0.5 is our decision; BlocksNet has no threshold.
+  - **Finding: population and land use class.** 1 871 of the 9 595 inhabitants (19.5 %) live in blocks whose
+    class is not residential; 1 059 of them live in the large blocks 2 and 172 (class recreation), where
+    the dwellings are a small built-up part of a very large block. 13 blocks with the class residential have no
+    dwellings in the register (block_id 4, 24, 28, 52, 55, 107, 108, 112, 127, 196, 211, 220, 244). They are small
+    (570–3 528 m²); 8 have no building at all, 5 have one or two buildings that are not dwellings.
 - **Possible extension: legal vs planned vs mapped land use.** The general plan of Haapsalu is available as
   open data: WFS `https://gsavalik.envir.ee/geoserver/planeeringud/wfs`, layer `planeeringud:yld_plan_maakas`
   ("ÜP — maakasutuse juhtotstarve"), plan `planid` 1842001, updated 2024-11-13, covering 64.8 % of the town,
