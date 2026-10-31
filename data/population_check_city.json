@@ -1,0 +1,15 @@
+{
+  "living_area_per_person_m2": 29.9,
+  "official_population_2021_RL21003": 9595,
+  "dwellings": 1757,
+  "dwellings_without_suletud_netopind": 1,
+  "dwellings_with_floors_not_from_registry": 0,
+  "gross_area_m2_footprint_x_floors": 723250,
+  "net_area_m2_suletud_netopind": 495762,
+  "population_gross": 24189,
+  "population_net": 16581,
+  "ratio_gross_to_official": 2.521,
+  "ratio_net_to_official": 1.728,
+  "median_footprint_m2_over_ehitisalune_pind_dwellings": 1.19,
+  "dwellings_with_ehitisalune_pind": 1749
+}

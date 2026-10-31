@@ -5,6 +5,7 @@ matplotlib==3.11.2
 osmnx==2.1.1
 pandas==2.3.3
 shapely==2.2.0
+numpy==2.2.6
 # Not imported directly: geopandas needs it for the raw OSM cache (to_parquet / read_parquet)
 pyarrow==19.0.1
 # Needed to run the notebook from the command line (jupyter nbconvert --execute)

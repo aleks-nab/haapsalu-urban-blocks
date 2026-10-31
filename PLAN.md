@@ -22,10 +22,16 @@ layer may be empty or contain only the historic line. This is stated, not hidden
    like by land use, building density, building type (Spacematrix) and estimated
    population? How well are blocks served by schools, and how long does it take to
    reach them?
-2. **Building data quality (my extension).** How complete and how accurate are
-   OpenStreetMap buildings in Haapsalu compared with the official Estonian data:
-   - footprint: which buildings are missing in OSM, which exist only in OSM;
-   - number of floors: how often OSM has it at all, and how often it matches;
+2. **Building data quality (my extension).** What is lost or outdated when official
+   building data is carried into OpenStreetMap: missing and extra buildings, floors, purpose.
+   OSM is not an independent source here (see "OSM and official data are not independent"
+   below). Sub-questions:
+   - footprint: which buildings are missing in OSM, which exist only in OSM (118 official
+     buildings have no OSM pair and 295 OSM buildings have no official pair, by the rule
+     "overlap above 50 % of the smaller area");
+   - number of floors: OSM has it for 3.6 % of buildings against 75.7 % in the official
+     data, and how often the values match;
+   - purpose: how the OSM `building` tag compares with the official use (`kaos_nimetus`);
    - missing floors as a finding: how many buildings lack floors in OSM, in EHR,
      and in both;
    - effect: how much do the population and density estimates change if official
@@ -57,6 +63,15 @@ feature counts are in `data/SOURCES.md`.
 Known data issues (from press and studies, checked): parts of the EHR are hidden from
 the public, and one building can have several EHR records.
 
+**OSM and official data are not independent (checked on 2026-10-31).** 3 459 of the 3 885
+OSM buildings carry the tag `maaamet:ETAK`, and 3 391 of these values are the `etak_id` of an
+official building. All 3 046 OSM buildings with a `height` tag have it. The OSM height equals
+the official `korgus_m` exactly in 2 988 of 3 002 matched pairs; 14 pairs differ by more than
+1 m (largest difference 10 m). There is no `source:height` or `source:geometry` tag, so the
+origin of the heights is not stated in OSM. Conclusion for Q2: OSM cannot be used as an
+independent check of the official data; the comparison shows what is lost or outdated on the
+way into OSM.
+
 ## Method decisions
 
 - **Living area per person comes from official statistics, not from tuning: 29.9 m²**
@@ -80,6 +95,38 @@ the public, and one building can have several EHR records.
   model and of the building data; the parameter is not changed to make them match.
 - **Second population estimate** from the EHR net floor area (`suletud_netopind`) of
   residential buildings, compared with the footprint × floors approach.
+- **Floors for calculations** (columns in `official_buildings.geojson`): `footprint_m2` is
+  the area of the geometry in EPSG:3301 (not the register field `ehitisalune_pind`);
+  `floors` is `max_korruste_arv`, else `round(korgus_m / 3)` with a minimum of 1, else 1;
+  `floors_source` is `registry` (2 982 buildings), `height_3m` (879) or `default_1` (80).
+  3 m per floor is a conventional assumption, not a norm. Floors that do not come from the
+  registry are used for density only, not for the population estimate.
+- **Dwellings for the population estimate** are chosen by the official use `kaos_nimetus`,
+  not by a substring, and stored in the column `is_dwelling` of `official_buildings.geojson`.
+  Five uses count as dwellings: `Üksikelamu`, `Muu kolme või enama korteriga elamu`,
+  `Ridaelamu või kaksikelamu sektsioon (juhul kui on oma katus ja sissepääs maapinnalt)`,
+  `Kahe korteriga elamu`, `Ridaelamu`. Repeated entries in the text are collapsed first.
+  - **Mixed uses:** a building is a dwelling if at least one of its uses is one of the five;
+    its whole area counts as dwelling area. *Limitation:* this overestimates the population
+    in houses with shops or offices.
+  - **Cut texts:** `kaos_nimetus` is cut at 500 characters (77 buildings). If the last use of
+    such a text is a fragment of exactly one known full use, it is read as that use, for the
+    classification only (75 buildings; 2 ambiguous fragments are left as they are). The
+    values in the data are not changed.
+  - **Not counted (limitation):** hotels, a sanatorium and garden or holiday houses are not
+    permanent housing. A children's home and a care home (6 buildings) are not counted
+    either, although people live there. `Elamu, kooli vms abihoone` (779 buildings) is an
+    outbuilding, not housing.
+  - Result: 1 757 dwelling buildings (1 521 with a single dwelling use, 236 mixed or with a
+    cut text), all with floors from the registry.
+- **First population check for the whole town** (no fitting, only a check; per-block method
+  is chosen later; `data/population_check_city.json`): with 29.9 m² per person, the sum of
+  `footprint_m2 × floors` of the dwellings (723 250 m²) gives 24 189 people, 2.52 times the
+  official 9 595; the sum of the registry `suletud_netopind` (495 762 m²) gives 16 581 people,
+  1.73 times. Both are expected to be too high: footprint × floors is a gross area, the 29.9 m²
+  is a usable area per person from occupied dwellings, and the building areas include vacant
+  dwellings (census: 91 362 m² of 377 891 m² of dwelling area in Haapsalu linn is vacant),
+  common areas and the non-dwelling parts of mixed buildings.
 - **Missing floors are a finding.** Report how many buildings lack floors in OSM, in EHR,
   and in both, and what default BlocksNet uses then (1 floor).
 - **School provision uses Estonian data, not the BlocksNet norms.** The BlocksNet norms
