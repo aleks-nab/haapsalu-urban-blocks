@@ -43,8 +43,8 @@ feature counts are in `data/SOURCES.md`.
 
 | Topic | Source | Used for | Status |
 | --- | --- | --- | --- |
-| Town boundary | Maa- ja Ruumiamet, EHAK administrative and settlement division, layer "Asustusüksused", unit **Haapsalu linn** (the settlement, not the municipality, which since 2017 also includes the former Ridala vald). SHP, updated monthly, open licence. | study area | checked: EHAK code 1692, 11.0 km², follows the coastline |
-| Official buildings: footprints, floors, height, areas, use | Maa- ja Ruumiamet WFS `https://gsavalik.envir.ee/geoserver/etak_tuletis/wfs`, layer `etak_tuletis:etak_ehr_hooned` (ETAK buildings enriched with Building Register EHR data), requested for Haapsalu only. Fields include `max_korruste_arv`, `min_korruste_arv`, `korgus`, `ehitisalune_pind`, `suletud_netopind`, `kaos_nimetus`, `esmane_kasutus`, `ehr_gid`. Updated daily, open licence (CC BY 4.0 equivalent). | Q2, Q3 | checked: 3 941 buildings in town, 2 984 linked to EHR, 2 982 with floors |
+| Town boundary | Maa- ja Ruumiamet, EHAK administrative and settlement division, layer "Asustusüksused", unit **Haapsalu linn** (the settlement, not the municipality, which since 2017 also includes the former Ridala vald). SHP, updated monthly, open data (same Maa- ja Ruumiamet licence, see `data/SOURCES.md`). | study area | checked: EHAK code 1692, 11.0 km², follows the coastline |
+| Official buildings: footprints, floors, height, areas, use | Maa- ja Ruumiamet WFS `https://gsavalik.envir.ee/geoserver/etak_tuletis/wfs`, layer `etak_tuletis:etak_ehr_hooned` (ETAK buildings enriched with Building Register EHR data), requested for Haapsalu only. Fields include `max_korruste_arv`, `min_korruste_arv`, `korgus`, `ehitisalune_pind`, `suletud_netopind`, `kaos_nimetus`, `esmane_kasutus`, `ehr_gid`. Updated daily. Licence: Maa- ja Ruumiamet opendata licence 01.01.2025 (own licence text, https://geoportaal.maaruum.ee/opendata-licence; quoted in `data/SOURCES.md`). | Q2, Q3 | checked: 3 941 buildings in town, 2 984 linked to EHR, 2 982 with floors |
 | Roads, water, land use, buildings, schools | OpenStreetMap (via osmnx, as in BlocksNet `examples/pipeline.ipynb`) | blocks, metrics (course task), Q2 | checked (method) |
 | Living area per person | Statistics Estonia, census 2021: RL21218 total area of occupied conventional dwellings / RL21003 population, Haapsalu linn = **29.9 m²** (total useful floor area, same concept as the 30.1 m² for Estonia on the census page "Housing arrangements") | population estimate (model parameter) | checked |
 | Official population of Haapsalu town | Statistics Estonia, census 2021, RL21003, settlement Haapsalu linn: **9 595** (31.12.2021) | check of the model and the building data | checked |
@@ -69,6 +69,12 @@ the public, and one building can have several EHR records.
   area, so the total useful floor area is the closer concept. The value is slightly low
   because people in institutions are in the denominator (same method gives 29.3 m² for
   Estonia against the published 30.1 m²). The BlocksNet defaults (20 m² and 30 m²) are not used.
+- **Limitation: gross versus usable floor area.** BlocksNet computes floor area as
+  footprint × floors, a *gross* floor area (walls, staircases, corridors, non-residential
+  floors). The 29.9 m² per person is a *usable* floor area of dwellings and is smaller.
+  Dividing a gross area by a usable-area norm overestimates the population, so the
+  estimate is expected to be higher than the official 9 595. This is reported as a
+  limitation; nothing is tuned to match 9 595.
 - **One check, not calibration.** The estimated population is compared once with the
   official population of Haapsalu linn. The difference is reported as a check of the
   model and of the building data; the parameter is not changed to make them match.
@@ -93,17 +99,38 @@ the public, and one building can have several EHR records.
   (about 2.4 km); they are saved but **not used for block cutting**.
 - **Buildings** (OSM and official) are kept whole if their inside point lies in the town,
   not cut at the boundary, so footprint areas stay correct.
-- **Tiny islands without buildings** are not city blocks: they are dropped or marked as
-  natural areas and are not counted in block statistics.
-- **Large undeveloped blocks** (forest, fields) are kept, but marked (for example a column
-  `built_up = false`), so that averages and the dashboard can show built-up blocks separately.
+- **Roads for cutting:** the BlocksNet road types plus `highway=service` (yard and access
+  roads; the BlocksNet list misses almost all of them). **Not used:** `footway`, `path`,
+  `cycleway`, `steps` (they would cut the town into narrow strips). Dead-end streets are not
+  extended to the next road and land-use outlines are not used for cutting (both were tested
+  and rejected for now).
+- **Islands without buildings** are not city blocks: a block with no buildings that is
+  further than 20 m from every road line is dropped and saved to
+  `data/blocks_dropped_islands.geojson`; it is not counted in block statistics. There is no
+  area limit in this rule (an earlier 1 ha limit let one 1.2 ha island stay).
+- **Slivers:** a block with no buildings and area below 500 m² (typically a strip between
+  roads) is dropped and saved to `data/blocks_dropped_slivers.geojson`. The islands rule is
+  applied first, then the slivers rule.
+- **Undeveloped blocks** (forest, fields) with at least 500 m² are kept and marked
+  `built_up = False`, so that averages and the dashboard can show built-up blocks
+  separately. A block is built up if it has at least one building in the official or the
+  OSM layer; no threshold on building share is used.
+- **Large blocks:** a block over 1 km² gets `large_block = True` (the threshold is
+  preliminary and will be checked on the map). Such blocks are kept, and averages and the
+  dashboard can show them separately. The blocks also have `building_share` (footprint of
+  the official buildings / block area) to show how empty they are.
+- **BlocksClassifier is not used:** in a separate trial the model labelled 213 of 216 blocks
+  `INVALID` and cut nothing.
+- **Known limitation, shoreline strip:** block 2 (3.76 km²) contains the empty south-eastern
+  area and also a thin strip along the shore, because the street network does not separate
+  them. The strip is left as it is; the block is covered by `large_block = True`.
 
 ## Steps
 
 1. **Set-up.** Project folder, Python 3.12 environment, BlocksNet, empty GitHub repository.
 2. **Boundary.** EHAK "Asustusüksused", Haapsalu linn. Check it on a map.
 3. **Data.** Download the layers above (official buildings via WFS for the boundary only), record source and date, save as GeoJSON. Verify the "assumed" sources.
-4. **Blocks.** Build city blocks with BlocksNet (roads and water; no railway). Drop or mark tiny islands without buildings; mark undeveloped blocks. **Stop and check the blocks on a map** before any metrics.
+4. **Blocks.** Build city blocks with BlocksNet (roads incl. `highway=service`, and water; no railway). Drop islands and slivers without buildings (separate files); mark undeveloped blocks (`built_up`) and large blocks (`large_block`). **Stop and check the blocks on a map** before any metrics.
 5. **Metrics.** Land use shares, density, Spacematrix, population estimate (official census 2021 living area per person; one comparison with the official population as a check), schools (EHIS capacity, children aged 7–18; BlocksNet norm only as a stated fallback), walking accessibility, as in BlocksNet `examples/pipeline.ipynb`.
 6. **Building comparison (Q2).** Match OSM and official buildings, count missing ones, compare floors, count buildings without floors in OSM / EHR / both; recompute population and density with official floors; compare with the EHR net floor area estimate.
 7. **Dashboard.** One `dashboard.html`: map of blocks, charts and tables, plus a page section for the OSM vs official comparison.

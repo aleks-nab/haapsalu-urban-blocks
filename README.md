@@ -4,7 +4,7 @@ Self-study GIS project: city blocks and block metrics for Haapsalu, Estonia, bui
 [BlocksNet](https://github.com/aimclub/blocksnet), plus a comparison of OpenStreetMap
 buildings with official Estonian building data (footprints and number of floors).
 
-Status: set-up. No data downloaded and no results yet.
+Status: blocks cut (297), metrics not calculated yet.
 
 See [PLAN.md](PLAN.md) for the research questions, data sources and steps.
 
